@@ -31,7 +31,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [transcribeStatus, setTranscribeStatus] = useState(null); // 'decoding', 'loading_model', 'processing', 'complete', 'error'
   const [transcribeProgress, setTranscribeProgress] = useState(0);
   const [transcribeErrorMsg, setTranscribeErrorMsg] = useState('');
-  const [transcribeLanguage, setTranscribeLanguage] = useState('auto');
+  const [transcribeLanguage, setTranscribeLanguage] = useState('en');
 
   // LocalStorage API Key check happens inside the function
 
@@ -61,6 +61,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
           formData.append('file', recordedBlob, `audio.${extension}`);
           formData.append('model', 'whisper-large-v3');
           formData.append('temperature', '0'); // Deterministic transcription to reduce hallucinations
+          formData.append('prompt', 'The following is a clear voice recording. Transcribe exactly what is spoken.');
           if (transcribeLanguage !== 'auto') {
               formData.append('language', transcribeLanguage);
           }
