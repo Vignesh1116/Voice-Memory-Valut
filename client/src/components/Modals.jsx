@@ -26,6 +26,56 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const isRecordingRef = useRef(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(true);
 
+  // Transcription Worker State
+  const workerRef = useRef(null);
+  const [transcribeStatus, setTranscribeStatus] = useState(null); // 'decoding', 'loading_model', 'processing', 'complete', 'error'
+  const [transcribeProgress, setTranscribeProgress] = useState(0);
+
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('../transcriberWorker.js', import.meta.url), { type: 'module' });
+    
+    workerRef.current.addEventListener('message', (event) => {
+        const { status, progress, text, error } = event.data;
+        if (status === 'progress') {
+            setTranscribeStatus('loading_model');
+            if (progress && progress.progress) {
+                setTranscribeProgress(progress.progress);
+            }
+        } else if (status === 'processing') {
+            setTranscribeStatus('processing');
+        } else if (status === 'complete') {
+            setTranscribeStatus('complete');
+            setNotes(prev => (prev ? prev + ' ' : '') + text.trim());
+        } else if (status === 'error') {
+            setTranscribeStatus('error');
+            console.error("Transcription error:", error);
+        }
+    });
+
+    return () => {
+        workerRef.current.terminate();
+    };
+  }, []);
+
+  const handleTranscribeAudio = async () => {
+      if (!recordedBlob) return;
+      try {
+          setTranscribeStatus('decoding');
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          const arrayBuffer = await recordedBlob.arrayBuffer();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const audioData = audioBuffer.getChannelData(0); // Float32Array
+          
+          workerRef.current.postMessage({
+              command: 'transcribe',
+              audio: audioData
+          });
+      } catch (err) {
+          console.error("Failed to decode audio", err);
+          setTranscribeStatus('error');
+      }
+  };
+
   // Initialize Edit state
   useEffect(() => {
     if (activeModal === 'edit' && editingMemory) {
@@ -256,7 +306,21 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                   <button className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
                 )}
                 {!isRecording && audioUrl && (
-                  <button className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
+                    {(!transcribeStatus || transcribeStatus === 'error') && (
+                        <button className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
+                            Generate Transcript (AI)
+                        </button>
+                    )}
+                  </div>
+                )}
+                {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
+                    <div style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center' }}>
+                        {transcribeStatus === 'loading_model' && `Downloading AI Model (${Math.round(transcribeProgress)}%)...`}
+                        {transcribeStatus === 'decoding' && `Decoding audio...`}
+                        {transcribeStatus === 'processing' && `Transcribing...`}
+                    </div>
                 )}
               </div>
             </div>
