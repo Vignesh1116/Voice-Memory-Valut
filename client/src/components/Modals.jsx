@@ -241,6 +241,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       closeModal();
     } catch (err) {
       console.error(err);
+      if (err.message && err.message.includes('dynamically imported module')) {
+          alert('Updating app to the latest version... Please try saving again in a moment!');
+          window.location.reload();
+          return;
+      }
       alert('Failed to save memory: ' + (err.message || 'Unknown error'));
     }
   };
@@ -263,6 +268,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       closeModal();
     } catch (err) {
       console.error(err);
+      if (err.message && err.message.includes('dynamically imported module')) {
+          alert('Updating app to the latest version... Please try saving again in a moment!');
+          window.location.reload();
+          return;
+      }
     }
   };
 
