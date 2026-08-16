@@ -1,0 +1,27 @@
+{
+  "name": "voice-memory-vault",
+  "version": "1.0.0",
+  "description": "A premium, state-of-the-art web application for recording, uploading, tagging, organizing, and playing personal voice memories.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "voice",
+    "memory",
+    "vault",
+    "audio",
+    "recorder",
+    "sqlite"
+  ],
+  "author": "Vignesh B",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.1"
+  }
+}

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Vault</title>
+  <meta name="description" content="Capture, organize, and cherish your personal voice memories with a state-of-the-art glassmorphic audio archive.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="navbar glass-card">
+      <div class="brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-microphone-lines brand-icon"></i>
+        </div>
+        <div class="brand-text">
+          <h1>Voice Memory <span>Vault</span></h1>
+          <p>Preserve your thoughts, ideas, and cherished moments</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="btn-open-upload" class="btn btn-secondary">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+        </button>
+        <button id="btn-open-record" class="btn btn-primary pulse-glow">
+          <i class="fa-solid fa-microphone"></i> Record Memory
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Dashboard Banner -->
+    <section class="stats-grid">
+      <div class="stat-card glass-card">
+        <div class="stat-icon cyan"><i class="fa-solid fa-layer-group"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Memories</span>
+          <h3 id="stat-total" class="stat-value">0</h3>
+        </div>
+      </div>
+      
+      <div class="stat-card glass-card">
+        <div class="stat-icon violet"><i class="fa-solid fa-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Duration</span>
+          <h3 id="stat-duration" class="stat-value">0s</h3>
+        </div>
+      </div>
+      
+      <div class="stat-card glass-card">
+        <div class="stat-icon golden"><i class="fa-solid fa-star"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Favorite Vault Items</span>
+          <h3 id="stat-favorites" class="stat-value">0</h3>
+        </div>
+      </div>
+
+      <div class="stat-card glass-card">
+        <div class="stat-icon pink"><i class="fa-solid fa-tag"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Top Category</span>
+          <h3 id="stat-toptag" class="stat-value">None</h3>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Toolbar: Filter, Search, Sort -->
+    <section class="controls-bar glass-card">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="search-input" placeholder="Search memories by title, lyrics, or notes...">
+        <button id="btn-clear-search" class="btn-clear hidden"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="filter-sort-group">
+        <button id="btn-fav-filter" class="btn btn-toggle" title="Show favorites only">
+          <i class="fa-solid fa-star"></i> Favorites Only
+        </button>
+
+        <div class="sort-box">
+          <label for="sort-select"><i class="fa-solid fa-arrow-down-short-wide"></i> Sort:</label>
+          <select id="sort-select" class="glass-select">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="longest">Longest Duration</option>
+            <option value="shortest">Shortest Duration</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category / Mood Filter Pills -->
+    <section class="category-pills">
+      <button class="pill active" data-tag="All">All Memories</button>
+      <button class="pill" data-tag="🎙️ Voice Memory">🎙️ Voice Memory</button>
+    </section>
+
+    <!-- Memories Grid Content -->
+    <main class="memories-container">
+      <div id="loading-spinner" class="spinner-box">
+        <div class="spinner"></div>
+        <p>Loading Vault Memories...</p>
+      </div>
+
+      <div id="memories-grid" class="memories-grid hidden">
+        <!-- Dynamic memory cards will be injected here -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state glass-card hidden">
+        <div class="empty-icon"><i class="fa-solid fa-waveform-lines"></i></div>
+        <h2>Your Voice Vault is Empty</h2>
+        <p>Start preserving your ideas and stories today. Click the button below to record your first voice memory!</p>
+        <button id="btn-empty-record" class="btn btn-primary pulse-glow mt-4">
+          <i class="fa-solid fa-microphone"></i> Record Your First Memory
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal 1: Live Voice Recorder -->
+  <div id="modal-record" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-microphone-lines text-cyan"></i> Record Voice Memory</h2>
+        <button class="btn-close modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body text-center">
+        <!-- Visualizer & Timer -->
+        <div class="recorder-display">
+          <canvas id="audio-visualizer" width="400" height="100"></canvas>
+          <div id="recording-status" class="recording-status hidden">
+            <span class="pulse-dot"></span> Recording Live...
+          </div>
+          <div id="recording-timer" class="recording-timer">00:00</div>
+        </div>
+
+        <!-- Recorder Controls -->
+        <div class="recorder-controls">
+          <button id="btn-start-record" class="btn btn-record-start">
+            <i class="fa-solid fa-circle"></i> Start Recording
+          </button>
+          <button id="btn-pause-record" class="btn btn-secondary hidden">
+            <i class="fa-solid fa-pause"></i> Pause
+          </button>
+          <button id="btn-stop-record" class="btn btn-record-stop hidden">
+            <i class="fa-solid fa-square"></i> Stop & Done
+          </button>
+        </div>
+
+        <!-- Audio Preview Player (After Recording) -->
+        <div id="preview-container" class="preview-container hidden mt-4">
+          <div class="media-section-header">
+            <span class="media-badge voice-badge"><i class="fa-solid fa-circle-play"></i> Recorded Audio Review</span>
+            <span style="font-size: 11px; color: var(--text-dim);">Test play, pause & speed before saving</span>
+          </div>
+          <div class="memory-player">
+            <div class="player-controls">
+              <button type="button" id="btn-preview-play" class="btn-play-pause" onclick="togglePreviewPlay()">
+                <i class="fa-solid fa-play"></i>
+              </button>
+              <div class="progress-container">
+                <div class="progress-bar" onclick="seekPreviewAudio(event)">
+                  <div class="progress-fill" id="preview-progress"></div>
+                </div>
+                <div class="time-display">
+                  <span id="preview-current-time">0:00</span>
+                  <span id="preview-total-time">0:00</span>
+                </div>
+              </div>
+              <button type="button" id="btn-preview-speed" class="btn-speed" onclick="cyclePreviewSpeed()" title="Change Playback Speed">1x</button>
+            </div>
+          </div>
+          <audio id="audio-preview" class="hidden"></audio>
+        </div>
+
+        <!-- Metadata Form -->
+        <form id="form-record-meta" class="meta-form mt-6 text-left">
+          <div class="form-group">
+            <label for="rec-title">Memory Title *</label>
+            <input type="text" id="rec-title" placeholder="e.g., Midnight Epiphany on Project X" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="rec-tag">Category</label>
+              <select id="rec-tag" class="glass-select w-full">
+                <option value="🎙️ Voice Memory">🎙️ Voice Memory</option>
+              </select>
+            </div>
+            <div class="form-group flex-1 flex items-center justify-end pt-6">
+              <label class="fav-checkbox-label">
+                <input type="checkbox" id="rec-fav">
+                <span class="star-toggle"><i class="fa-solid fa-star"></i> Mark as Favorite</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+              <label for="rec-notes" style="margin-bottom: 0; color: var(--neon-cyan);"><i class="fa-solid fa-file-lines"></i> Voice-to-Text Transcription</label>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <select id="stt-lang-select" class="glass-select" style="font-size: 11px; padding: 3px 8px; border-radius: 12px; height: 26px; border-color: var(--neon-cyan-glow); color: var(--neon-cyan);" onchange="updateSpeechLang()">
+                  <option value="tanglish">🇮🇳 Tanglish (Tamil in English Script)</option>
+                  <option value="ta-IN">🇮🇳 Tamil Script (தமிழ் எழுத்துக்கள்)</option>
+                  <option value="en-US">🇺🇸 English (US / Global)</option>
+                  <option value="en-IN">🇮🇳 Indian English</option>
+                </select>
+                <span id="stt-status" class="stt-badge"><i class="fa-solid fa-microphone-lines"></i> Speech-to-Text Ready</span>
+              </div>
+            </div>
+            <textarea id="rec-notes" rows="3" placeholder="Speak in Tanglish! Tamil words will automatically convert to Tanglish (English script)..."></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 8px;">
+              <button type="button" class="btn-text-action" onclick="convertTextToTanglish('rec-notes')" title="Convert any Tamil script in box to Tanglish (English script)"><i class="fa-solid fa-language" style="color: #38bdf8;"></i> 🔄 Convert Tamil to Tanglish</button>
+              <button type="button" class="btn-text-action" onclick="simulateAITranscription('rec-notes', 'rec-title')"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--golden);"></i> ✨ AI Transcribe Audio</button>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="submit" id="btn-save-record" class="btn btn-primary" disabled>
+              <i class="fa-solid fa-floppy-disk"></i> Save to Vault
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: File Upload -->
+  <div id="modal-upload" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-cloud-arrow-up text-violet"></i> Upload Audio File</h2>
+        <button class="btn-close modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-upload-file" class="modal-body">
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept="audio/*" class="hidden">
+          <div class="dropzone-content">
+            <i class="fa-solid fa-folder-open drop-icon"></i>
+            <p id="drop-text">Drag & drop your audio file here, or <span class="text-cyan cursor-pointer">browse</span></p>
+            <span class="drop-hint">Supports MP3, WAV, WebM, OGG, M4A (Max 50MB)</span>
+          </div>
+        </div>
+
+        <div class="form-group mt-4">
+          <label for="up-title">Memory Title *</label>
+          <input type="text" id="up-title" placeholder="e.g., Acoustic Guitar Sketch #4" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="up-tag">Category</label>
+            <select id="up-tag" class="glass-select w-full">
+              <option value="🎙️ Voice Memory">🎙️ Voice Memory</option>
+            </select>
+          </div>
+          <div class="form-group flex-1 flex items-center justify-end pt-6">
+            <label class="fav-checkbox-label">
+              <input type="checkbox" id="up-fav">
+              <span class="star-toggle"><i class="fa-solid fa-star"></i> Mark as Favorite</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+            <label for="up-notes" style="margin-bottom: 0; color: var(--neon-violet);"><i class="fa-solid fa-file-lines"></i> Audio-to-Text Transcription</label>
+            <button type="button" class="btn-text-action" onclick="convertTextToTanglish('up-notes')" title="Convert Tamil script to Tanglish"><i class="fa-solid fa-language" style="color: #38bdf8;"></i> 🔄 Convert to Tanglish</button>
+          </div>
+          <textarea id="up-notes" rows="3" placeholder="Add text notes or use AI Transcribe to generate Tanglish/English text from audio..."></textarea>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn-text-action" onclick="simulateAITranscription('up-notes', 'up-title')"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--golden);"></i> ✨ AI Transcribe File</button>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+          <button type="submit" id="btn-submit-upload" class="btn btn-primary" disabled>
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Edit / View Memory Notes -->
+  <div id="modal-edit" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-pen-to-square text-golden"></i> Edit Memory Details</h2>
+        <button class="btn-close modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-edit-memory" class="modal-body">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label for="edit-title">Memory Title *</label>
+          <input type="text" id="edit-title" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="edit-tag">Category</label>
+            <select id="edit-tag" class="glass-select w-full">
+              <option value="🎙️ Voice Memory">🎙️ Voice Memory</option>
+            </select>
+          </div>
+          <div class="form-group flex-1 flex items-center justify-end pt-6">
+            <label class="fav-checkbox-label">
+              <input type="checkbox" id="edit-fav">
+              <span class="star-toggle"><i class="fa-solid fa-star"></i> Favorite</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+            <label for="edit-notes" style="margin-bottom: 0; color: var(--golden);"><i class="fa-solid fa-file-lines"></i> Text Transcription / Notes</label>
+            <button type="button" class="btn-text-action" onclick="convertTextToTanglish('edit-notes')" title="Convert Tamil script to Tanglish"><i class="fa-solid fa-language" style="color: #38bdf8;"></i> 🔄 Convert to Tanglish</button>
+          </div>
+          <textarea id="edit-notes" rows="5" placeholder="Add or edit text transcription..."></textarea>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn-text-action" onclick="simulateAITranscription('edit-notes', 'edit-title')"><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--golden);"></i> ✨ AI Transcribe</button>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-check"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Custom JavaScript -->
+  <script src="js/app.js"></script>
+</body>
+</html>
