@@ -171,6 +171,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      setTranscribeStatus(null);
+      setTranscribeErrorMsg('');
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
