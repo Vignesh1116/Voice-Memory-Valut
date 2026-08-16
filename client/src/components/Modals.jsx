@@ -32,67 +32,60 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [transcribeProgress, setTranscribeProgress] = useState(0);
   const [transcribeErrorMsg, setTranscribeErrorMsg] = useState('');
 
-  useEffect(() => {
-    workerRef.current = new Worker(new URL('../transcriberWorker.js', import.meta.url), { type: 'module' });
-    
-    workerRef.current.addEventListener('message', (event) => {
-        const { status, progress, text, error } = event.data;
-        if (status === 'progress') {
-            setTranscribeStatus('loading_model');
-            if (progress && progress.progress) {
-                setTranscribeProgress(progress.progress);
-            }
-        } else if (status === 'processing') {
-            setTranscribeStatus('processing');
-        } else if (status === 'complete') {
-            setTranscribeStatus('complete');
-            setTranscribeErrorMsg('');
-            setNotes(prev => (prev ? prev + ' ' : '') + text.trim());
-        } else if (status === 'error') {
-            setTranscribeStatus('error');
-            setTranscribeErrorMsg(error || 'Unknown worker error');
-            console.error("Transcription error:", error);
-        }
-    });
-
-    workerRef.current.addEventListener('error', (err) => {
-        setTranscribeStatus('error');
-        setTranscribeErrorMsg('AI failed to start on this device.');
-        console.error("Worker load error:", err);
-    });
-
-    return () => {
-        workerRef.current.terminate();
-    };
-  }, []);
+  // LocalStorage API Key check happens inside the function
 
   const handleTranscribeAudio = async () => {
       if (!recordedBlob) return;
+      
+      let apiKey = localStorage.getItem('groq_api_key');
+      if (!apiKey) {
+          apiKey = prompt("Please enter your free Groq API Key (get it from console.groq.com/keys):");
+          if (!apiKey) return;
+          localStorage.setItem('groq_api_key', apiKey.trim());
+      } else {
+          apiKey = apiKey.trim();
+      }
+
       try {
-          setTranscribeStatus('decoding');
+          setTranscribeStatus('processing');
           setTranscribeErrorMsg('');
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-          const arrayBuffer = await recordedBlob.arrayBuffer();
-          const audioBuffer = await new Promise((resolve, reject) => {
-              const decodePromise = audioContext.decodeAudioData(
-                  arrayBuffer,
-                  (decoded) => resolve(decoded),
-                  (err) => reject(err)
-              );
-              if (decodePromise) {
-                  decodePromise.then(resolve).catch(reject);
-              }
-          });
-          const audioData = audioBuffer.getChannelData(0); // Float32Array
           
-          workerRef.current.postMessage({
-              command: 'transcribe',
-              audio: audioData
+          const formData = new FormData();
+          const actualMimeType = recordedBlob.type || 'audio/webm';
+          let extension = 'webm';
+          if (actualMimeType.includes('mp4')) extension = 'mp4';
+          if (actualMimeType.includes('wav')) extension = 'wav';
+          if (actualMimeType.includes('ogg')) extension = 'ogg';
+
+          formData.append('file', recordedBlob, `audio.${extension}`);
+          formData.append('model', 'whisper-large-v3');
+
+          const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Bearer ${apiKey}`
+              },
+              body: formData
           });
+
+          if (!response.ok) {
+              const errorData = await response.json();
+              if (response.status === 401) {
+                  localStorage.removeItem('groq_api_key');
+                  throw new Error("Invalid API Key. Please try again.");
+              }
+              throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
+          }
+
+          const result = await response.json();
+          
+          setTranscribeStatus('complete');
+          setNotes(prev => (prev ? prev + ' ' : '') + result.text.trim());
+
       } catch (err) {
-          console.error("Failed to decode audio", err);
+          console.error("Transcription error", err);
           setTranscribeStatus('error');
-          setTranscribeErrorMsg(err.message || 'Failed to decode audio blob');
+          setTranscribeErrorMsg(err.message || 'Failed to contact Groq API');
       }
   };
 
@@ -339,9 +332,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                 )}
                 {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
                     <div style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center' }}>
-                        {transcribeStatus === 'loading_model' && `Downloading AI Model (${Math.round(transcribeProgress)}%)...`}
-                        {transcribeStatus === 'decoding' && `Decoding audio...`}
-                        {transcribeStatus === 'processing' && `Transcribing...`}
+                        {transcribeStatus === 'processing' && `Transcribing in the Cloud...`}
                     </div>
                 )}
                 {transcribeStatus === 'error' && transcribeErrorMsg && (
