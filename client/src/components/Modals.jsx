@@ -30,6 +30,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const workerRef = useRef(null);
   const [transcribeStatus, setTranscribeStatus] = useState(null); // 'decoding', 'loading_model', 'processing', 'complete', 'error'
   const [transcribeProgress, setTranscribeProgress] = useState(0);
+  const [transcribeErrorMsg, setTranscribeErrorMsg] = useState('');
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../transcriberWorker.js', import.meta.url), { type: 'module' });
@@ -45,9 +46,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
             setTranscribeStatus('processing');
         } else if (status === 'complete') {
             setTranscribeStatus('complete');
+            setTranscribeErrorMsg('');
             setNotes(prev => (prev ? prev + ' ' : '') + text.trim());
         } else if (status === 'error') {
             setTranscribeStatus('error');
+            setTranscribeErrorMsg(error || 'Unknown worker error');
             console.error("Transcription error:", error);
         }
     });
@@ -61,6 +64,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       if (!recordedBlob) return;
       try {
           setTranscribeStatus('decoding');
+          setTranscribeErrorMsg('');
           const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
           const arrayBuffer = await recordedBlob.arrayBuffer();
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -73,6 +77,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       } catch (err) {
           console.error("Failed to decode audio", err);
           setTranscribeStatus('error');
+          setTranscribeErrorMsg(err.message || 'Failed to decode audio blob');
       }
   };
 
@@ -320,6 +325,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                         {transcribeStatus === 'loading_model' && `Downloading AI Model (${Math.round(transcribeProgress)}%)...`}
                         {transcribeStatus === 'decoding' && `Decoding audio...`}
                         {transcribeStatus === 'processing' && `Transcribing...`}
+                    </div>
+                )}
+                {transcribeStatus === 'error' && transcribeErrorMsg && (
+                    <div style={{ marginTop: '15px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', background: '#451a1a', padding: '8px', borderRadius: '8px' }}>
+                        Error: {transcribeErrorMsg}
                     </div>
                 )}
               </div>
