@@ -31,6 +31,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [transcribeStatus, setTranscribeStatus] = useState(null); // 'decoding', 'loading_model', 'processing', 'complete', 'error'
   const [transcribeProgress, setTranscribeProgress] = useState(0);
   const [transcribeErrorMsg, setTranscribeErrorMsg] = useState('');
+  const [transcribeLanguage, setTranscribeLanguage] = useState('auto');
 
   // LocalStorage API Key check happens inside the function
 
@@ -59,6 +60,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
           formData.append('file', recordedBlob, `audio.${extension}`);
           formData.append('model', 'whisper-large-v3');
+          formData.append('temperature', '0'); // Deterministic transcription to reduce hallucinations
+          if (transcribeLanguage !== 'auto') {
+              formData.append('language', transcribeLanguage);
+          }
 
           const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
               method: 'POST',
@@ -321,13 +326,34 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                   <button type="button" className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
                 )}
                 {!isRecording && audioUrl && (
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
-                    {(!transcribeStatus || transcribeStatus === 'error') && (
-                        <button type="button" className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
-                            Generate Transcript (AI)
-                        </button>
-                    )}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Language:</label>
+                        <select 
+                            className="glass-select" 
+                            style={{ padding: '4px 8px', fontSize: '0.9rem', minWidth: '120px' }}
+                            value={transcribeLanguage} 
+                            onChange={e => setTranscribeLanguage(e.target.value)}
+                        >
+                            <option value="auto">Auto-Detect</option>
+                            <option value="en">English</option>
+                            <option value="hi">Hindi (हिंदी)</option>
+                            <option value="ta">Tamil (தமிழ்)</option>
+                            <option value="te">Telugu (తెలుగు)</option>
+                            <option value="ml">Malayalam (മലയാളം)</option>
+                            <option value="mr">Marathi (मराठी)</option>
+                            <option value="bn">Bengali (বাংলা)</option>
+                            <option value="es">Spanish</option>
+                        </select>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
+                        {(!transcribeStatus || transcribeStatus === 'error') && (
+                            <button type="button" className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
+                                Generate Transcript (AI)
+                            </button>
+                        )}
+                    </div>
                   </div>
                 )}
                 {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
