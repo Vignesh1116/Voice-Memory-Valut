@@ -74,7 +74,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
       recognition.onend = () => {
         if (isRecordingRef.current) {
-          try { recognition.start(); } catch(e) {}
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          if (!isAndroid) {
+            try { recognition.start(); } catch(e) {}
+          }
         }
       };
 
@@ -124,7 +127,12 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       }, 1000);
       
       if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.start(); } catch(e){}
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        if (!isAndroid) {
+          try { speechRecognitionRef.current.start(); } catch(e){}
+        } else {
+          console.log("Speech recognition disabled on Android to prevent mic conflict.");
+        }
       }
       
     } catch (err) {
