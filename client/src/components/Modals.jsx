@@ -55,6 +55,12 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         }
     });
 
+    workerRef.current.addEventListener('error', (err) => {
+        setTranscribeStatus('error');
+        setTranscribeErrorMsg('AI failed to start on this device.');
+        console.error("Worker load error:", err);
+    });
+
     return () => {
         workerRef.current.terminate();
     };
@@ -166,7 +172,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const actualMimeType = mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
         setRecordedBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(track => track.stop());
@@ -305,16 +312,16 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
               </div>
               <div className="recorder-controls">
                 {!isRecording && !audioUrl && (
-                  <button className="btn-record-start" onClick={handleStartRecording}>Start Recording</button>
+                  <button type="button" className="btn-record-start" onClick={handleStartRecording}>Start Recording</button>
                 )}
                 {isRecording && (
-                  <button className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
+                  <button type="button" className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
                 )}
                 {!isRecording && audioUrl && (
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <button className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
+                    <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
                     {(!transcribeStatus || transcribeStatus === 'error') && (
-                        <button className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
+                        <button type="button" className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
                             Generate Transcript (AI)
                         </button>
                     )}
