@@ -73,7 +73,16 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
           setTranscribeErrorMsg('');
           const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
           const arrayBuffer = await recordedBlob.arrayBuffer();
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const audioBuffer = await new Promise((resolve, reject) => {
+              const decodePromise = audioContext.decodeAudioData(
+                  arrayBuffer,
+                  (decoded) => resolve(decoded),
+                  (err) => reject(err)
+              );
+              if (decodePromise) {
+                  decodePromise.then(resolve).catch(reject);
+              }
+          });
           const audioData = audioBuffer.getChannelData(0); // Float32Array
           
           workerRef.current.postMessage({
@@ -234,6 +243,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       closeModal();
     } catch (err) {
       console.error(err);
+      alert('Failed to save memory: ' + (err.message || 'Unknown error'));
     }
   };
 
