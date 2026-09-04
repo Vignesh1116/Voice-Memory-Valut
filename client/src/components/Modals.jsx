@@ -166,10 +166,34 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
     };
   }, []);
 
+  const getSupportedMimeType = () => {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/aac',
+      'audio/ogg'
+    ];
+    for (const type of types) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return '';
+  };
+
   const handleStartRecording = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Audio recording is not supported on this browser/device or requires an HTTPS connection.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : {};
+      const mediaRecorder = new MediaRecorder(stream, options);
+
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       setTranscribeStatus(null);
@@ -182,14 +206,14 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       };
 
       mediaRecorder.onstop = () => {
-        const actualMimeType = mediaRecorder.mimeType || 'audio/webm';
+        const actualMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
         const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
         setRecordedBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(500);
       setIsRecording(true);
       isRecordingRef.current = true;
       setRecordSeconds(0);
@@ -208,8 +232,14 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       }
       
     } catch (err) {
-      console.error(err);
-      alert('Microphone access denied or error occurred.');
+      console.error("Recording error:", err);
+      let errMsg = 'Could not access microphone.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errMsg = 'Microphone access was denied. Please allow microphone permissions in your browser or device settings.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errMsg = 'No microphone device found on this device.';
+      }
+      alert(errMsg);
     }
   };
 
