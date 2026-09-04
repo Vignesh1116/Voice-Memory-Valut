@@ -37,6 +37,51 @@ export default function MemoryCard({ memory, index, onEdit, refreshData, activeA
     }
   };
 
+  const handleDownload = async () => {
+    try {
+      import('../services/localDb').then(async ({ getMemoryAudioUrl }) => {
+        const targetSrc = memory.filepath || (memory.filename ? `/uploads/${memory.filename}` : null);
+        if (!targetSrc) {
+          alert('Audio file path not found');
+          return;
+        }
+
+        const audioUrl = await getMemoryAudioUrl(targetSrc);
+        if (!audioUrl) {
+          alert('Could not locate audio file for download');
+          return;
+        }
+
+        const response = await fetch(audioUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const cleanTitle = (memory.title || 'voice-memory').replace(/[^a-z0-9_-]/gi, '_');
+        const ext = targetSrc.includes('.mp4') ? 'mp4' : (targetSrc.includes('.wav') ? 'wav' : 'webm');
+        const fileName = `${cleanTitle}.${ext}`;
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(a);
+        }, 1000);
+      });
+    } catch (err) {
+      console.error('Download error:', err);
+      const fallbackUrl = memory.filepath || (memory.filename ? `/uploads/${memory.filename}` : null);
+      if (fallbackUrl) {
+        window.open(fallbackUrl, '_blank');
+      }
+    }
+  };
+
   return (
     <div className="memory-card stagger-enter" style={{ animationDelay: `${index * 0.08}s` }}>
       <div>
@@ -61,7 +106,7 @@ export default function MemoryCard({ memory, index, onEdit, refreshData, activeA
         
         <AudioPlayer 
           id={memory.id} 
-          src={memory.filepath} 
+          src={memory.filepath || (memory.filename ? `/uploads/${memory.filename}` : null)} 
           duration={memory.duration} 
           isActive={activeAudioId === memory.id}
           setActive={() => setActiveAudioId(memory.id)}
@@ -91,19 +136,7 @@ export default function MemoryCard({ memory, index, onEdit, refreshData, activeA
         <button className="btn-action" onClick={() => onEdit(memory)}>
           <Edit size={16} style={{display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom'}} /> Edit
         </button>
-        <button className="btn-action" onClick={async () => {
-          import('../services/localDb').then(async ({ getMemoryAudioUrl }) => {
-            const audioUrl = await getMemoryAudioUrl(memory.filename);
-            if (audioUrl) {
-              const a = document.createElement('a');
-              a.href = audioUrl;
-              a.download = memory.title + '.webm';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            }
-          });
-        }}>
+        <button className="btn-action" onClick={handleDownload}>
           <Download size={16} style={{display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom'}} /> Download
         </button>
         <button className="btn-action btn-delete" onClick={deleteMemory}>

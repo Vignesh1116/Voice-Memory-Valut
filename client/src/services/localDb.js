@@ -150,7 +150,7 @@ export const getMemoryAudioUrl = async (filepathOrFilename) => {
     console.error('Failed to get audio url:', e);
   }
 
-  return null;
+  return `/uploads/${filepathOrFilename}`;
 };
 
 export const updateMemory = async (id, updates) => {
