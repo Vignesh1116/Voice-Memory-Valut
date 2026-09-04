@@ -29,6 +29,11 @@ export default function Navbar({ onOpenRecord, onOpenUpload }) {
           <Mic size={18} /> Record Memory
         </button>
       </div>
+
+      {/* Floating Action Button for Mobile */}
+      <button className="btn-fab-record" onClick={onOpenRecord} title="Record Voice Memory">
+        <Mic size={24} />
+      </button>
     </header>
   );
 }

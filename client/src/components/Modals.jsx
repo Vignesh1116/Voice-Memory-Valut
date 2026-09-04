@@ -331,6 +331,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   return (
     <div className="modal-overlay">
       <div className="modal-card">
+        <div className="mobile-drag-handle"></div>
         
         {/* Header */}
         <div className="modal-header">

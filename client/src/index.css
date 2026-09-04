@@ -1122,22 +1122,76 @@ body::before {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Mobile Devices & Touch Optimization */
+/* Floating Action Button for Mobile */
+.btn-fab-record {
+  display: none;
+  position: fixed;
+  bottom: 28px;
+  right: 22px;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.55), 0 0 15px rgba(56, 189, 248, 0.3);
+  cursor: pointer;
+  z-index: 999;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  animation: pulseFab 2.5s infinite alternate;
+}
+
+@keyframes pulseFab {
+  0% { transform: scale(1); box-shadow: 0 10px 25px rgba(99, 102, 241, 0.55); }
+  100% { transform: scale(1.06); box-shadow: 0 14px 30px rgba(99, 102, 241, 0.75), 0 0 20px rgba(56, 189, 248, 0.5); }
+}
+
+.btn-fab-record:active {
+  transform: scale(0.92);
+}
+
+.mobile-drag-handle {
+  display: none;
+}
+
+/* Mobile Application Interface Optimization (< 640px) */
 @media (max-width: 640px) {
   .app-container {
-    padding: 16px 14px 60px;
+    padding: 14px 14px 90px;
   }
 
+  .btn-fab-record {
+    display: flex;
+  }
+
+  /* Header & Navbar */
   .navbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
-    padding: 16px 18px;
-    margin-bottom: 24px;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    border-radius: 20px;
   }
 
   .brand {
-    justify-content: center;
+    justify-content: space-between;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .brand-text h1 {
+    font-size: 20px;
+  }
+
+  .brand-text p {
+    font-size: 11.5px;
   }
 
   .header-actions {
@@ -1150,35 +1204,185 @@ body::before {
     justify-content: center;
     padding: 10px 14px;
     font-size: 13.5px;
+    border-radius: 12px;
   }
 
+  /* Stats Dashboard (2x2 Grid) */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    padding: 14px 16px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+
+  .stat-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+    border-radius: 10px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  /* Controls & Search Toolbar */
   .controls-bar {
     padding: 14px 16px;
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 12px;
+    border-radius: 18px;
+    margin-bottom: 18px;
   }
 
-  .search-box {
-    min-width: 100%;
+  .search-box input {
+    padding: 11px 36px 11px 42px;
+    font-size: 13.5px;
+    border-radius: 12px;
+  }
+
+  .search-icon {
+    left: 14px;
   }
 
   .filter-sort-group {
+    display: flex;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
+    gap: 10px;
+  }
+
+  .btn-toggle {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+
+  .glass-select {
+    padding: 8px 30px 8px 12px;
+    font-size: 12.5px;
+  }
+
+  /* Category Pills */
+  .category-pills {
+    gap: 8px;
+    margin-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .category-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pill {
+    padding: 8px 16px;
+    font-size: 12.5px;
+  }
+
+  /* Memory Cards on Mobile */
+  .memories-grid {
+    gap: 18px;
+  }
+
+  .memory-card {
+    padding: 20px 18px;
+    border-radius: 20px;
+  }
+
+  .memory-title {
+    font-size: 16.5px;
+  }
+
+  .memory-date {
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+
+  .memory-player {
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+
+  .btn-play-pause {
+    width: 42px;
+    height: 42px;
+  }
+
+  .progress-bar {
+    height: 8px;
+  }
+
+  .memory-transcript-box {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .memory-footer {
+    padding-top: 14px;
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .btn-action {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* Native Mobile Bottom Sheet Modals */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+    backdrop-filter: blur(16px) brightness(0.7);
+  }
+
+  .mobile-drag-handle {
+    display: block;
+    width: 42px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    margin: 12px auto 4px;
   }
 
   .modal-card {
-    max-width: 94vw;
-    border-radius: var(--radius-lg);
+    max-width: 100vw;
+    width: 100vw;
+    border-radius: 26px 26px 0 0;
+    max-height: 88vh;
+    animation: slideUpSheet 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(99, 102, 241, 0.2);
+  }
+
+  @keyframes slideUpSheet {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
   }
 
   .modal-header {
-    padding: 16px 20px;
+    padding: 14px 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
   }
 
   .modal-body {
     padding: 18px 20px;
+    max-height: 70vh;
   }
 
   .form-row {
@@ -1188,9 +1392,15 @@ body::before {
 
   .recorder-display {
     padding: 20px 14px;
+    border-radius: 16px;
   }
 
   .recording-timer {
-    font-size: 32px;
+    font-size: 34px;
+  }
+
+  .btn-record-start, .btn-record-stop {
+    padding: 12px 24px;
+    font-size: 14.5px;
   }
 }
