@@ -21,9 +21,16 @@ app.use('/uploads', express.static(db.uploadsDir));
 // API Routes
 app.use('/api', memoriesRouter);
 
+const fs = require('fs');
+
 // Fallback to index.html for SPA routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+  const indexPath = path.join(__dirname, 'client/dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(500).send("Frontend build not found. Please run 'npm run build' in root directory.");
+  }
 });
 
 app.listen(PORT, () => {

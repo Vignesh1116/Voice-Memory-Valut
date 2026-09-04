@@ -4,6 +4,8 @@
   "description": "A premium, state-of-the-art web application for recording, uploading, tagging, organizing, and playing personal voice memories.",
   "main": "server.js",
   "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "postinstall": "cd client && npm install && npm run build",
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
