@@ -8,6 +8,9 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [isFavorite, setIsFavorite] = useState(false);
   const [tag, setTag] = useState('🎙️ Voice Memory');
   const [interimNotes, setInterimNotes] = useState('');
+  const [sttLanguage, setSttLanguage] = useState(navigator.language || 'en-US');
+  const [isSttActive, setIsSttActive] = useState(false);
+  const transcriptBufferRef = useRef('');
   
   // Recording State
   const [isRecording, setIsRecording] = useState(false);
@@ -31,7 +34,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [transcribeStatus, setTranscribeStatus] = useState(null); // 'decoding', 'loading_model', 'processing', 'complete', 'error'
   const [transcribeProgress, setTranscribeProgress] = useState(0);
   const [transcribeErrorMsg, setTranscribeErrorMsg] = useState('');
-  const [transcribeLanguage, setTranscribeLanguage] = useState('en');
+  const [transcribeLanguage, setTranscribeLanguage] = useState('auto');
 
   // LocalStorage API Key check happens inside the function
 
@@ -100,6 +103,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
     if (activeModal === 'edit' && editingMemory) {
       setTitle(editingMemory.title || '');
       setNotes(editingMemory.notes || '');
+      transcriptBufferRef.current = editingMemory.notes || '';
       setIsFavorite(editingMemory.is_favorite || false);
       if (editingMemory.tags && editingMemory.tags.length > 0) {
         setTag(editingMemory.tags[0]);
@@ -109,6 +113,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       const dateStr = now.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
       const timeStr = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       setTitle(`Voice Recording - ${dateStr}, ${timeStr}`);
+      if (activeModal === 'record') {
+        setNotes('');
+        transcriptBufferRef.current = '';
+      }
     }
   }, [activeModal, editingMemory]);
 
@@ -120,33 +128,40 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
+      recognition.lang = sttLanguage;
       
       recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
+        let finalStr = '';
+        let interimStr = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const text = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + ' ';
+            finalStr += text + ' ';
           } else {
-            interimTranscript += event.results[i][0].transcript;
+            interimStr += text;
           }
         }
-        if (finalTranscript) {
-          setNotes(prev => (prev ? prev + ' ' : '') + finalTranscript.trim());
+        if (finalStr) {
+          transcriptBufferRef.current = (transcriptBufferRef.current + ' ' + finalStr).trim();
         }
-        setInterimNotes(interimTranscript);
+        const combined = (transcriptBufferRef.current + (interimStr ? ' ' + interimStr : '')).trim();
+        if (combined) {
+          setNotes(combined);
+        }
       };
 
       recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
+        console.warn('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          setIsSttActive(false);
+        }
       };
 
       recognition.onend = () => {
         if (isRecordingRef.current) {
-          const isAndroid = /Android/i.test(navigator.userAgent);
-          if (!isAndroid) {
-            try { recognition.start(); } catch(e) {}
-          }
+          try { recognition.start(); } catch(e) {}
+        } else {
+          setIsSttActive(false);
         }
       };
 
@@ -154,13 +169,16 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
     } else {
       setIsSpeechSupported(false);
     }
-  }, []);
+  }, [sttLanguage]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
+      }
+      if (speechRecognitionRef.current) {
+        try { speechRecognitionRef.current.stop(); } catch(e){}
       }
       clearInterval(timerRef.current);
     };
@@ -217,17 +235,19 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       setIsRecording(true);
       isRecordingRef.current = true;
       setRecordSeconds(0);
+      transcriptBufferRef.current = '';
       
       timerRef.current = setInterval(() => {
         setRecordSeconds(prev => prev + 1);
       }, 1000);
       
       if (speechRecognitionRef.current) {
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        if (!isAndroid) {
-          try { speechRecognitionRef.current.start(); } catch(e){}
-        } else {
-          console.log("Speech recognition disabled on Android to prevent mic conflict.");
+        try {
+          speechRecognitionRef.current.lang = sttLanguage;
+          speechRecognitionRef.current.start();
+          setIsSttActive(true);
+        } catch (e) {
+          console.warn("Could not start speech recognition:", e);
         }
       }
       
@@ -235,7 +255,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       console.error("Recording error:", err);
       let errMsg = 'Could not access microphone.';
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errMsg = 'Microphone access was denied. Please allow microphone permissions in your browser or device settings.';
+        errMsg = 'Microphone access was denied. Please allow microphone permissions in your browser settings.';
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         errMsg = 'No microphone device found on this device.';
       }
@@ -252,6 +272,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       clearInterval(timerRef.current);
       if (speechRecognitionRef.current) {
         try { speechRecognitionRef.current.stop(); } catch(e){}
+        setIsSttActive(false);
+      }
+      if (transcriptBufferRef.current) {
+        setNotes(transcriptBufferRef.current);
       }
     }
   };
@@ -354,8 +378,33 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                   ⚠️ Speech-to-text is not supported in your browser. (Try Google Chrome or Edge)
                 </div>
               )}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>Spoken Language:</label>
+                <select 
+                  className="glass-select" 
+                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                  value={sttLanguage} 
+                  onChange={e => setSttLanguage(e.target.value)}
+                  disabled={isRecording}
+                >
+                  <option value="en-US">English (US)</option>
+                  <option value="en-IN">English (India)</option>
+                  <option value="hi-IN">Hindi (हिंदी)</option>
+                  <option value="ta-IN">Tamil (தமிழ்)</option>
+                  <option value="te-IN">Telugu (తెలుగు)</option>
+                  <option value="ml-IN">Malayalam (മലയാളം)</option>
+                  <option value="mr-IN">Marathi (मराठी)</option>
+                  <option value="bn-IN">Bengali (বাংলা)</option>
+                  <option value="es-ES">Spanish (Español)</option>
+                </select>
+              </div>
+
               <div className="recorder-display">
-                {isRecording && <div className="recording-status"><span className="pulse-dot"></span> Recording Live...</div>}
+                {isRecording && (
+                  <div className="recording-status">
+                    <span className="pulse-dot"></span> Recording Live & Transcribing Speech...
+                  </div>
+                )}
                 <div className="recording-timer">{formatTime(recordSeconds)}</div>
                 
                 {audioUrl && !isRecording && (
