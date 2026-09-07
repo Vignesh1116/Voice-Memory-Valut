@@ -80,47 +80,36 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         }
       }
 
-      // 2. Direct Groq API fallback if key available or prompt user
-      if (!apiKey) {
-        apiKey = prompt("Enter Groq API Key for free AI Transcription (or set GROQ_API_KEY on server):");
-        if (!apiKey) {
-          setTranscribeStatus(null);
+      // 2. Direct Groq API fallback ONLY IF key stored in localStorage (NEVER prompt user)
+      if (apiKey) {
+        const groqFormData = new FormData();
+        groqFormData.append('file', blobToTranscribe, `audio.${extension}`);
+        groqFormData.append('model', 'whisper-large-v3');
+        groqFormData.append('temperature', '0');
+        if (transcribeLanguage !== 'auto') {
+          groqFormData.append('language', transcribeLanguage);
+        }
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey.trim()}` },
+          body: groqFormData
+        }).catch(() => null);
+
+        if (groqRes && groqRes.ok) {
+          const result = await groqRes.json();
+          setTranscribeStatus('complete');
+          setNotes(prev => (prev ? prev + ' ' : '') + result.text.trim());
           return;
         }
-        localStorage.setItem('groq_api_key', apiKey.trim());
       }
 
-      const groqFormData = new FormData();
-      groqFormData.append('file', blobToTranscribe, `audio.${extension}`);
-      groqFormData.append('model', 'whisper-large-v3');
-      groqFormData.append('temperature', '0');
-      if (transcribeLanguage !== 'auto') {
-        groqFormData.append('language', transcribeLanguage);
-      }
-
-      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey.trim()}` },
-        body: groqFormData
-      });
-
-      if (!groqRes.ok) {
-        const errorData = await groqRes.json().catch(() => ({}));
-        if (groqRes.status === 401) {
-          localStorage.removeItem('groq_api_key');
-          throw new Error("Invalid API Key. Please try again.");
-        }
-        throw new Error(errorData.error?.message || `HTTP Error ${groqRes.status}`);
-      }
-
-      const result = await groqRes.json();
-      setTranscribeStatus('complete');
-      setNotes(prev => (prev ? prev + ' ' : '') + result.text.trim());
+      // If transcription is not configured or unavailable, complete silently
+      setTranscribeStatus(null);
 
     } catch (err) {
-      console.error("Transcription error", err);
-      setTranscribeStatus('error');
-      setTranscribeErrorMsg(err.message || 'Failed to transcribe audio');
+      console.warn("Transcription handled silently:", err);
+      setTranscribeStatus(null);
     }
   };
 
