@@ -53,6 +53,8 @@ export const saveMemory = async (memoryData, audioBlob) => {
     if (response.ok) {
       const savedMemory = await response.json();
       return savedMemory;
+    } else {
+      console.warn('API save returned non-200 status:', response.status);
     }
   } catch (apiErr) {
     console.warn('API save failed, using local storage fallback:', apiErr);
@@ -60,7 +62,14 @@ export const saveMemory = async (memoryData, audioBlob) => {
 
   // 2. Fallback for offline / client-only mode
   const id = uuidv4();
-  const filename = `${id}.webm`;
+  const mime = audioBlob ? (audioBlob.type || 'audio/webm') : 'audio/webm';
+  let ext = 'webm';
+  if (mime.includes('mp4')) ext = 'mp4';
+  else if (mime.includes('wav')) ext = 'wav';
+  else if (mime.includes('ogg')) ext = 'ogg';
+  else if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';
+
+  const filename = `${id}.${ext}`;
   
   if (audioBlob) {
     if (Capacitor.isNativePlatform()) {
@@ -73,10 +82,10 @@ export const saveMemory = async (memoryData, audioBlob) => {
         });
       } catch (fsErr) {
         console.error('Capacitor Filesystem write error:', fsErr);
-        await audioStore.setItem(filename, audioBlob);
+        await audioStore.setItem(filename, audioBlob).catch(e => console.error('audioStore error:', e));
       }
     } else {
-      await audioStore.setItem(filename, audioBlob);
+      await audioStore.setItem(filename, audioBlob).catch(e => console.error('audioStore error:', e));
     }
   }
 

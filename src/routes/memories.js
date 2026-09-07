@@ -266,4 +266,61 @@ router.delete('/memories/:id', async (req, res) => {
   }
 });
 
+// POST /api/transcribe - Server-side audio transcription helper
+router.post('/transcribe', upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    const userKey = req.headers['x-groq-key'];
+    const apiKey = (userKey && userKey.trim()) ? userKey.trim() : (process.env.GROQ_API_KEY || '').trim();
+
+    if (!apiKey) {
+      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      return res.status(400).json({ error: 'Groq API Key missing. Please provide key in header or set GROQ_API_KEY env variable.' });
+    }
+
+    const filePath = req.file.path;
+    const fileBuffer = fs.readFileSync(filePath);
+    const blob = new Blob([fileBuffer], { type: req.file.mimetype || 'audio/webm' });
+    
+    const formData = new FormData();
+    formData.append('file', blob, req.file.filename);
+    formData.append('model', 'whisper-large-v3');
+    formData.append('temperature', '0');
+    if (req.body && req.body.language && req.body.language !== 'auto') {
+      formData.append('language', req.body.language);
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: formData
+    });
+
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (e) {}
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({ error: `Groq API Error: ${errText}` });
+    }
+
+    const data = await response.json();
+    res.json({ text: data.text || '' });
+  } catch (err) {
+    console.error('Transcription route error:', err);
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    res.status(500).json({ error: err.message || 'Failed to transcribe audio' });
+  }
+});
+
 module.exports = router;

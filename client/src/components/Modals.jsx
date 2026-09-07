@@ -38,64 +38,90 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
   // LocalStorage API Key check happens inside the function
 
-  const handleTranscribeAudio = async () => {
-      if (!recordedBlob) return;
-      
-      let apiKey = localStorage.getItem('groq_api_key');
-      if (!apiKey) {
-          apiKey = prompt("Please enter your free Groq API Key (get it from console.groq.com/keys):");
-          if (!apiKey) return;
-          localStorage.setItem('groq_api_key', apiKey.trim());
-      } else {
-          apiKey = apiKey.trim();
+  const handleTranscribeAudio = async (blobInput = null) => {
+    const blobToTranscribe = blobInput || recordedBlob;
+    if (!blobToTranscribe) return;
+
+    try {
+      setTranscribeStatus('processing');
+      setTranscribeErrorMsg('');
+
+      const actualMimeType = blobToTranscribe.type || 'audio/webm';
+      let extension = 'webm';
+      if (actualMimeType.includes('mp4')) extension = 'mp4';
+      if (actualMimeType.includes('wav')) extension = 'wav';
+      if (actualMimeType.includes('ogg')) extension = 'ogg';
+
+      const formData = new FormData();
+      formData.append('audio', blobToTranscribe, `audio.${extension}`);
+      if (transcribeLanguage !== 'auto') {
+        formData.append('language', transcribeLanguage);
       }
 
-      try {
-          setTranscribeStatus('processing');
-          setTranscribeErrorMsg('');
-          
-          const formData = new FormData();
-          const actualMimeType = recordedBlob.type || 'audio/webm';
-          let extension = 'webm';
-          if (actualMimeType.includes('mp4')) extension = 'mp4';
-          if (actualMimeType.includes('wav')) extension = 'wav';
-          if (actualMimeType.includes('ogg')) extension = 'ogg';
+      let apiKey = localStorage.getItem('groq_api_key') || '';
+      const headers = {};
+      if (apiKey) {
+        headers['x-groq-key'] = apiKey;
+      }
 
-          formData.append('file', recordedBlob, `audio.${extension}`);
-          formData.append('model', 'whisper-large-v3');
-          formData.append('temperature', '0'); // Deterministic transcription to reduce hallucinations
-          formData.append('prompt', 'The following is a clear voice recording. Transcribe exactly what is spoken.');
-          if (transcribeLanguage !== 'auto') {
-              formData.append('language', transcribeLanguage);
-          }
+      // 1. Try server endpoint first
+      const serverRes = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers,
+        body: formData
+      }).catch(() => null);
 
-          const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-              method: 'POST',
-              headers: {
-                  'Authorization': `Bearer ${apiKey}`
-              },
-              body: formData
-          });
-
-          if (!response.ok) {
-              const errorData = await response.json();
-              if (response.status === 401) {
-                  localStorage.removeItem('groq_api_key');
-                  throw new Error("Invalid API Key. Please try again.");
-              }
-              throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
-          }
-
-          const result = await response.json();
-          
+      if (serverRes && serverRes.ok) {
+        const result = await serverRes.json();
+        if (result.text) {
           setTranscribeStatus('complete');
           setNotes(prev => (prev ? prev + ' ' : '') + result.text.trim());
-
-      } catch (err) {
-          console.error("Transcription error", err);
-          setTranscribeStatus('error');
-          setTranscribeErrorMsg(err.message || 'Failed to contact Groq API');
+          return;
+        }
       }
+
+      // 2. Direct Groq API fallback if key available or prompt user
+      if (!apiKey) {
+        apiKey = prompt("Enter Groq API Key for free AI Transcription (or set GROQ_API_KEY on server):");
+        if (!apiKey) {
+          setTranscribeStatus(null);
+          return;
+        }
+        localStorage.setItem('groq_api_key', apiKey.trim());
+      }
+
+      const groqFormData = new FormData();
+      groqFormData.append('file', blobToTranscribe, `audio.${extension}`);
+      groqFormData.append('model', 'whisper-large-v3');
+      groqFormData.append('temperature', '0');
+      if (transcribeLanguage !== 'auto') {
+        groqFormData.append('language', transcribeLanguage);
+      }
+
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey.trim()}` },
+        body: groqFormData
+      });
+
+      if (!groqRes.ok) {
+        const errorData = await groqRes.json().catch(() => ({}));
+        if (groqRes.status === 401) {
+          localStorage.removeItem('groq_api_key');
+          throw new Error("Invalid API Key. Please try again.");
+        }
+        throw new Error(errorData.error?.message || `HTTP Error ${groqRes.status}`);
+      }
+
+      const result = await groqRes.json();
+      setTranscribeStatus('complete');
+      setNotes(prev => (prev ? prev + ' ' : '') + result.text.trim());
+
+    } catch (err) {
+      console.error("Transcription error", err);
+      setTranscribeStatus('error');
+      setTranscribeErrorMsg(err.message || 'Failed to transcribe audio');
+    }
   };
 
   // Initialize Edit state
@@ -151,8 +177,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       };
 
       recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
+        console.warn('Speech recognition warning/error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'audio-capture' || event.error === 'service-not-allowed') {
           setIsSttActive(false);
         }
       };
@@ -190,6 +216,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       'audio/webm',
       'audio/mp4',
       'audio/aac',
+      'audio/mpeg',
       'audio/ogg'
     ];
     for (const type of types) {
@@ -229,9 +256,15 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         setRecordedBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(track => track.stop());
+
+        // Auto transcribe if live speech recognition did not capture notes
+        if (!transcriptBufferRef.current && blob && blob.size > 0) {
+          handleTranscribeAudio(blob);
+        }
       };
 
-      mediaRecorder.start(500);
+      // Native start without timeslice to avoid WebKit / iOS Safari 0-byte chunk bug
+      mediaRecorder.start();
       setIsRecording(true);
       isRecordingRef.current = true;
       setRecordSeconds(0);
@@ -282,18 +315,48 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
   const handleSaveRecord = async (e) => {
     e.preventDefault();
-    if (!recordedBlob) return;
+
+    let blobToSave = recordedBlob;
+    let durationSeconds = recordSeconds;
+
+    // If user clicks Save while active recording, auto-stop first!
+    if (isRecordingRef.current && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      await new Promise((resolve) => {
+        if (mediaRecorderRef.current) {
+          const prevOnStop = mediaRecorderRef.current.onstop;
+          mediaRecorderRef.current.onstop = (evt) => {
+            if (prevOnStop) prevOnStop(evt);
+            setTimeout(resolve, 150);
+          };
+          handleStopRecording();
+        } else {
+          resolve();
+        }
+      });
+      await new Promise(r => setTimeout(r, 100));
+      blobToSave = recordedBlob;
+    }
+
+    if (!blobToSave && audioChunksRef.current.length > 0) {
+      const mime = getSupportedMimeType() || 'audio/webm';
+      blobToSave = new Blob(audioChunksRef.current, { type: mime });
+    }
+
+    if (!blobToSave) {
+      alert('No recorded audio found. Please record audio before saving.');
+      return;
+    }
     
     const memoryData = {
       title,
-      duration: String(recordSeconds),
+      duration: String(durationSeconds || recordSeconds),
       tags: [tag],
       is_favorite: isFavorite,
       notes
     };
 
     try {
-      await saveMemory(memoryData, recordedBlob);
+      await saveMemory(memoryData, blobToSave);
       refreshData();
       closeModal();
     } catch (err) {
@@ -374,8 +437,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
           {activeModal === 'record' && (
             <div className="text-center mb-6">
               {!isSpeechSupported && (
-                <div style={{ color: '#f59e0b', fontSize: '0.9rem', marginBottom: '10px' }}>
-                  ⚠️ Speech-to-text is not supported in your browser. (Try Google Chrome or Edge)
+                <div style={{ color: '#f59e0b', fontSize: '0.85rem', marginBottom: '10px' }}>
+                  ℹ️ Live Web Speech is not supported on this browser. Auto AI Whisper transcription will be used when recording completes.
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
@@ -402,7 +465,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
               <div className="recorder-display">
                 {isRecording && (
                   <div className="recording-status">
-                    <span className="pulse-dot"></span> Recording Live & Transcribing Speech...
+                    <span className="pulse-dot"></span> Recording Voice Live...
                   </div>
                 )}
                 <div className="recording-timer">{formatTime(recordSeconds)}</div>
@@ -442,21 +505,21 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
                         {(!transcribeStatus || transcribeStatus === 'error') && (
-                            <button type="button" className="btn-save" onClick={handleTranscribeAudio} style={{ background: '#6366f1' }}>
-                                Generate Transcript (AI)
+                            <button type="button" className="btn-save" onClick={() => handleTranscribeAudio(recordedBlob)} style={{ background: '#6366f1' }}>
+                                ✨ Transcribe Voice (AI)
                             </button>
                         )}
                     </div>
                   </div>
                 )}
                 {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
-                    <div style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center' }}>
-                        {transcribeStatus === 'processing' && `Transcribing in the Cloud...`}
+                    <div style={{ marginTop: '15px', color: '#38bdf8', fontSize: '0.9rem', textAlign: 'center', fontWeight: '600' }}>
+                        ✨ Transcribing voice to text...
                     </div>
                 )}
                 {transcribeStatus === 'error' && transcribeErrorMsg && (
                     <div style={{ marginTop: '15px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', background: '#451a1a', padding: '8px', borderRadius: '8px' }}>
-                        Error: {transcribeErrorMsg}
+                        Notice: {transcribeErrorMsg}
                     </div>
                 )}
               </div>
@@ -516,7 +579,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                 rows="3" 
                 value={notes + (interimNotes ? (notes ? ' ' : '') + interimNotes : '')} 
                 onChange={e => setNotes(e.target.value)} 
-                placeholder="Add text notes..."
+                placeholder="Spoken words will automatically appear here..."
               ></textarea>
             </div>
           </form>
@@ -530,9 +593,9 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
             type="submit" 
             form="modal-form"
             className="btn btn-primary" 
-            disabled={(activeModal === 'record' && !recordedBlob) || (activeModal === 'upload' && !selectedFile)}
+            disabled={(activeModal === 'record' && !recordedBlob && !isRecording) || (activeModal === 'upload' && !selectedFile)}
           >
-            <Save size={16} /> Save Changes
+            <Save size={16} /> Save Memory
           </button>
         </div>
 
