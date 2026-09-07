@@ -430,127 +430,128 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
           <button className="btn-close" onClick={closeModal}><X size={20} /></button>
         </div>
 
-        {/* Body */}
-        <div className="modal-body">
-          
-          {/* RECORD SECTION */}
-          {activeModal === 'record' && (
-            <div className="text-center mb-6">
-              {!isSpeechSupported && (
-                <div style={{ color: '#f59e0b', fontSize: '0.85rem', marginBottom: '10px' }}>
-                  ℹ️ Live Web Speech is not supported on this browser. Auto AI Whisper transcription will be used when recording completes.
+        {/* Form Container wrapping both body and footer for native mobile submit support */}
+        <form id="modal-form" className="modal-form-container" onSubmit={
+          activeModal === 'record' ? handleSaveRecord : 
+          activeModal === 'upload' ? handleUploadFile : 
+          handleSaveEdit
+        }>
+          {/* Body */}
+          <div className="modal-body">
+            
+            {/* RECORD SECTION */}
+            {activeModal === 'record' && (
+              <div className="text-center mb-6">
+                {!isSpeechSupported && (
+                  <div style={{ color: '#f59e0b', fontSize: '0.85rem', marginBottom: '10px' }}>
+                    ℹ️ Live Web Speech is not supported on this browser. Auto AI Whisper transcription will be used when recording completes.
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>Spoken Language:</label>
+                  <select 
+                    className="glass-select" 
+                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                    value={sttLanguage} 
+                    onChange={e => setSttLanguage(e.target.value)}
+                    disabled={isRecording}
+                  >
+                    <option value="en-US">English (US)</option>
+                    <option value="en-IN">English (India)</option>
+                    <option value="hi-IN">Hindi (हिंदी)</option>
+                    <option value="ta-IN">Tamil (தமிழ்)</option>
+                    <option value="te-IN">Telugu (తెలుగు)</option>
+                    <option value="ml-IN">Malayalam (മലയാളം)</option>
+                    <option value="mr-IN">Marathi (मराठी)</option>
+                    <option value="bn-IN">Bengali (বাংলা)</option>
+                    <option value="es-ES">Spanish (Español)</option>
+                  </select>
                 </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>Spoken Language:</label>
-                <select 
-                  className="glass-select" 
-                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                  value={sttLanguage} 
-                  onChange={e => setSttLanguage(e.target.value)}
-                  disabled={isRecording}
-                >
-                  <option value="en-US">English (US)</option>
-                  <option value="en-IN">English (India)</option>
-                  <option value="hi-IN">Hindi (हिंदी)</option>
-                  <option value="ta-IN">Tamil (தமிழ்)</option>
-                  <option value="te-IN">Telugu (తెలుగు)</option>
-                  <option value="ml-IN">Malayalam (മലയാളം)</option>
-                  <option value="mr-IN">Marathi (मराठी)</option>
-                  <option value="bn-IN">Bengali (বাংলা)</option>
-                  <option value="es-ES">Spanish (Español)</option>
-                </select>
-              </div>
 
-              <div className="recorder-display">
-                {isRecording && (
-                  <div className="recording-status">
-                    <span className="pulse-dot"></span> Recording Voice Live...
-                  </div>
-                )}
-                <div className="recording-timer">{formatTime(recordSeconds)}</div>
-                
-                {audioUrl && !isRecording && (
-                  <audio src={audioUrl} controls className="w-full mt-4" />
-                )}
+                <div className="recorder-display">
+                  {isRecording && (
+                    <div className="recording-status">
+                      <span className="pulse-dot"></span> Recording Voice Live...
+                    </div>
+                  )}
+                  <div className="recording-timer">{formatTime(recordSeconds)}</div>
+                  
+                  {audioUrl && !isRecording && (
+                    <audio src={audioUrl} controls className="w-full mt-4" />
+                  )}
+                </div>
+                <div className="recorder-controls">
+                  {!isRecording && !audioUrl && (
+                    <button type="button" className="btn-record-start" onClick={handleStartRecording}>Start Recording</button>
+                  )}
+                  {isRecording && (
+                    <button type="button" className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
+                  )}
+                  {!isRecording && audioUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <label style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Language:</label>
+                          <select 
+                              className="glass-select" 
+                              style={{ padding: '4px 8px', fontSize: '0.9rem', minWidth: '120px' }}
+                              value={transcribeLanguage} 
+                              onChange={e => setTranscribeLanguage(e.target.value)}
+                          >
+                              <option value="auto">Auto-Detect</option>
+                              <option value="en">English</option>
+                              <option value="hi">Hindi (हिंदी)</option>
+                              <option value="ta">Tamil (தமிழ்)</option>
+                              <option value="te">Telugu (తెలుగు)</option>
+                              <option value="ml">Malayalam (മലയാളം)</option>
+                              <option value="mr">Marathi (मराठी)</option>
+                              <option value="bn">Bengali (বাংলা)</option>
+                              <option value="es">Spanish</option>
+                          </select>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
+                          {(!transcribeStatus || transcribeStatus === 'error') && (
+                              <button type="button" className="btn-save" onClick={() => handleTranscribeAudio(recordedBlob)} style={{ background: '#6366f1' }}>
+                                  ✨ Transcribe Voice (AI)
+                              </button>
+                          )}
+                      </div>
+                    </div>
+                  )}
+                  {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
+                      <div style={{ marginTop: '15px', color: '#38bdf8', fontSize: '0.9rem', textAlign: 'center', fontWeight: '600' }}>
+                          ✨ Transcribing voice to text...
+                      </div>
+                  )}
+                  {transcribeStatus === 'error' && transcribeErrorMsg && (
+                      <div style={{ marginTop: '15px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', background: '#451a1a', padding: '8px', borderRadius: '8px' }}>
+                          Notice: {transcribeErrorMsg}
+                      </div>
+                  )}
+                </div>
               </div>
-              <div className="recorder-controls">
-                {!isRecording && !audioUrl && (
-                  <button type="button" className="btn-record-start" onClick={handleStartRecording}>Start Recording</button>
-                )}
-                {isRecording && (
-                  <button type="button" className="btn-record-stop" onClick={handleStopRecording}>Stop & Done</button>
-                )}
-                {!isRecording && audioUrl && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <label style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Language:</label>
-                        <select 
-                            className="glass-select" 
-                            style={{ padding: '4px 8px', fontSize: '0.9rem', minWidth: '120px' }}
-                            value={transcribeLanguage} 
-                            onChange={e => setTranscribeLanguage(e.target.value)}
-                        >
-                            <option value="auto">Auto-Detect</option>
-                            <option value="en">English</option>
-                            <option value="hi">Hindi (हिंदी)</option>
-                            <option value="ta">Tamil (தமிழ்)</option>
-                            <option value="te">Telugu (తెలుగు)</option>
-                            <option value="ml">Malayalam (മലയാളം)</option>
-                            <option value="mr">Marathi (मराठी)</option>
-                            <option value="bn">Bengali (বাংলা)</option>
-                            <option value="es">Spanish</option>
-                        </select>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
-                        {(!transcribeStatus || transcribeStatus === 'error') && (
-                            <button type="button" className="btn-save" onClick={() => handleTranscribeAudio(recordedBlob)} style={{ background: '#6366f1' }}>
-                                ✨ Transcribe Voice (AI)
-                            </button>
-                        )}
-                    </div>
-                  </div>
-                )}
-                {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
-                    <div style={{ marginTop: '15px', color: '#38bdf8', fontSize: '0.9rem', textAlign: 'center', fontWeight: '600' }}>
-                        ✨ Transcribing voice to text...
-                    </div>
-                )}
-                {transcribeStatus === 'error' && transcribeErrorMsg && (
-                    <div style={{ marginTop: '15px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', background: '#451a1a', padding: '8px', borderRadius: '8px' }}>
-                        Notice: {transcribeErrorMsg}
-                    </div>
-                )}
+            )}
+
+            {/* UPLOAD SECTION */}
+            {activeModal === 'upload' && (
+              <div className="dropzone mb-6">
+                <input 
+                  type="file" 
+                  accept="audio/*" 
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if(file) {
+                      setSelectedFile(file);
+                      if(!title || title.startsWith('Voice Recording')) setTitle(file.name.replace(/\.[^/.]+$/, ""));
+                    }
+                  }} 
+                  style={{display: 'block', margin: '0 auto 10px'}}
+                />
+                <p className="drop-hint">Supports MP3, WAV, WebM, OGG, M4A (Max 50MB)</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* UPLOAD SECTION */}
-          {activeModal === 'upload' && (
-            <div className="dropzone mb-6">
-              <input 
-                type="file" 
-                accept="audio/*" 
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if(file) {
-                    setSelectedFile(file);
-                    if(!title || title.startsWith('Voice Recording')) setTitle(file.name.replace(/\.[^/.]+$/, ""));
-                  }
-                }} 
-                style={{display: 'block', margin: '0 auto 10px'}}
-              />
-              <p className="drop-hint">Supports MP3, WAV, WebM, OGG, M4A (Max 50MB)</p>
-            </div>
-          )}
-
-          {/* SHARED FORM (Title, Tag, Favorite, Notes) */}
-          <form id="modal-form" onSubmit={
-            activeModal === 'record' ? handleSaveRecord : 
-            activeModal === 'upload' ? handleUploadFile : 
-            handleSaveEdit
-          }>
+            {/* SHARED INPUT FIELDS */}
             <div className="form-group">
               <label>Memory Title *</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)} required />
@@ -582,22 +583,20 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                 placeholder="Spoken words will automatically appear here..."
               ></textarea>
             </div>
-          </form>
+          </div>
 
-        </div>
-
-        {/* Footer */}
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
-          <button 
-            type="submit" 
-            form="modal-form"
-            className="btn btn-primary" 
-            disabled={(activeModal === 'record' && !recordedBlob && !isRecording) || (activeModal === 'upload' && !selectedFile)}
-          >
-            <Save size={16} /> Save Memory
-          </button>
-        </div>
+          {/* Footer - Native Submit Button inside Form */}
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+            <button 
+              type="submit" 
+              className="btn btn-primary btn-save-mobile" 
+              disabled={(activeModal === 'record' && !recordedBlob && !isRecording) || (activeModal === 'upload' && !selectedFile)}
+            >
+              <Save size={18} /> Save Memory
+            </button>
+          </div>
+        </form>
 
       </div>
     </div>
