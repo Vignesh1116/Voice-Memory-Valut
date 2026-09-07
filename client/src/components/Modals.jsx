@@ -246,8 +246,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(track => track.stop());
 
-        // Auto transcribe if live speech recognition did not capture notes
-        if (!transcriptBufferRef.current && blob && blob.size > 0) {
+        // Always trigger automatic Whisper AI voice transcription on recording completion
+        if (blob && blob.size > 0) {
           handleTranscribeAudio(blob);
         }
       };
