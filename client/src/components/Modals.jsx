@@ -431,11 +431,6 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
             {/* RECORD SECTION */}
             {activeModal === 'record' && (
               <div className="text-center mb-6">
-                {!isSpeechSupported && (
-                  <div style={{ color: '#f59e0b', fontSize: '0.85rem', marginBottom: '10px' }}>
-                    ℹ️ Live Web Speech is not supported on this browser. Auto AI Whisper transcription will be used when recording completes.
-                  </div>
-                )}
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                   <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>Spoken Language:</label>
                   <select 
@@ -478,43 +473,19 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                   )}
                   {!isRecording && audioUrl && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <label style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Language:</label>
-                          <select 
-                              className="glass-select" 
-                              style={{ padding: '4px 8px', fontSize: '0.9rem', minWidth: '120px' }}
-                              value={transcribeLanguage} 
-                              onChange={e => setTranscribeLanguage(e.target.value)}
-                          >
-                              <option value="auto">Auto-Detect</option>
-                              <option value="en">English</option>
-                              <option value="hi">Hindi (हिंदी)</option>
-                              <option value="ta">Tamil (தமிழ்)</option>
-                              <option value="te">Telugu (తెలుగు)</option>
-                              <option value="ml">Malayalam (മലയാളം)</option>
-                              <option value="mr">Marathi (मराठी)</option>
-                              <option value="bn">Bengali (বাংলা)</option>
-                              <option value="es">Spanish</option>
-                          </select>
-                      </div>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
                           <button type="button" className="btn-record-start" onClick={handleStartRecording}>Record Again</button>
                           {(!transcribeStatus || transcribeStatus === 'error') && (
                               <button type="button" className="btn-save" onClick={() => handleTranscribeAudio(recordedBlob)} style={{ background: '#6366f1' }}>
-                                  ✨ Transcribe Voice (AI)
+                                  ✨ Auto Transcribe
                               </button>
                           )}
                       </div>
                     </div>
                   )}
-                  {transcribeStatus && transcribeStatus !== 'complete' && transcribeStatus !== 'error' && (
+                  {transcribeStatus === 'processing' && (
                       <div style={{ marginTop: '15px', color: '#38bdf8', fontSize: '0.9rem', textAlign: 'center', fontWeight: '600' }}>
                           ✨ Transcribing voice to text...
-                      </div>
-                  )}
-                  {transcribeStatus === 'error' && transcribeErrorMsg && (
-                      <div style={{ marginTop: '15px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'center', background: '#451a1a', padding: '8px', borderRadius: '8px' }}>
-                          Notice: {transcribeErrorMsg}
                       </div>
                   )}
                 </div>

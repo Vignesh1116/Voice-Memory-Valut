@@ -270,7 +270,7 @@ router.delete('/memories/:id', async (req, res) => {
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No audio file provided' });
+      return res.json({ text: '' });
     }
 
     const userKey = req.headers['x-groq-key'];
@@ -280,7 +280,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       if (req.file && req.file.path && fs.existsSync(req.file.path)) {
         try { fs.unlinkSync(req.file.path); } catch (e) {}
       }
-      return res.status(400).json({ error: 'Groq API Key missing. Please provide key in header or set GROQ_API_KEY env variable.' });
+      return res.json({ text: '' });
     }
 
     const filePath = req.file.path;
@@ -301,25 +301,24 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
         'Authorization': `Bearer ${apiKey}`
       },
       body: formData
-    });
+    }).catch(() => null);
 
     if (fs.existsSync(filePath)) {
       try { fs.unlinkSync(filePath); } catch (e) {}
     }
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: `Groq API Error: ${errText}` });
+    if (!response || !response.ok) {
+      return res.json({ text: '' });
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     res.json({ text: data.text || '' });
   } catch (err) {
-    console.error('Transcription route error:', err);
+    console.error('Transcription route error:', err.message);
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch (e) {}
     }
-    res.status(500).json({ error: err.message || 'Failed to transcribe audio' });
+    res.json({ text: '' });
   }
 });
 
