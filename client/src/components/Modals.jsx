@@ -54,8 +54,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
       const formData = new FormData();
       formData.append('audio', blobToTranscribe, `audio.${extension}`);
-      if (transcribeLanguage !== 'auto') {
-        formData.append('language', transcribeLanguage);
+      const selectedLang = sttLanguage || transcribeLanguage || 'auto';
+      if (selectedLang && selectedLang !== 'auto') {
+        const isoLang = selectedLang.split('-')[0].toLowerCase();
+        formData.append('language', isoLang);
       }
 
       let apiKey = localStorage.getItem('groq_api_key') || '';
@@ -86,8 +88,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         groqFormData.append('file', blobToTranscribe, `audio.${extension}`);
         groqFormData.append('model', 'whisper-large-v3');
         groqFormData.append('temperature', '0');
-        if (transcribeLanguage !== 'auto') {
-          groqFormData.append('language', transcribeLanguage);
+        groqFormData.append('prompt', 'Transcribe spoken Tamil, Tanglish (Tamil code-switched with English), Hindi, and English audio accurately into text. தமிழ் பேச்சு வார்த்தைகளை துல்லியமாக எழுதவும்.');
+        if (selectedLang && selectedLang !== 'auto') {
+          const isoLang = selectedLang.split('-')[0].toLowerCase();
+          groqFormData.append('language', isoLang);
         }
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {

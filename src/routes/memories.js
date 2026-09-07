@@ -295,9 +295,11 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     formData.append('file', blob, req.file.filename);
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');
-    formData.append('prompt', 'Transcribe the spoken audio accurately. Supports Tamil, Tanglish (Tamil and English code-switching), Hindi, and English speech.');
-    if (req.body && req.body.language && req.body.language !== 'auto') {
-      formData.append('language', req.body.language);
+    formData.append('prompt', 'Transcribe spoken Tamil, Tanglish (Tamil code-switched with English), Hindi, and English audio accurately into text. தமிழ் மற்றும் ஆங்கில பேச்சு வார்த்தைகளை துல்லியமாக எழுதவும்.');
+    let rawLang = req.body && req.body.language ? req.body.language.trim() : '';
+    if (rawLang && rawLang !== 'auto') {
+      const isoLang = rawLang.split('-')[0].toLowerCase();
+      formData.append('language', isoLang);
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
