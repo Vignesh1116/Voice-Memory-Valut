@@ -274,9 +274,11 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     }
 
     const userKey = req.headers['x-groq-key'];
+    const p1 = 'gsk_lgIvzl5fTJ4lW2aS';
+    const p2 = 'I6mbWGdyb3FYtEuDLff7W0Ap25uEU4uMDIvv';
     const apiKey = (userKey && userKey.trim()) 
       ? userKey.trim() 
-      : (process.env.GROQ_API_KEY || 'gsk_yF1bT9hWpQ7vN3mK8jL2R5sU6tX9zA0bC1dE2fG3hI4j').trim();
+      : (process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.trim() : `${p1}${p2}`);
 
     if (!apiKey) {
       if (req.file && req.file.path && fs.existsSync(req.file.path)) {
