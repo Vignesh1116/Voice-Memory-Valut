@@ -261,19 +261,6 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         setRecordSeconds(prev => prev + 1);
       }, 1000);
       
-      if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop(); } catch(e) {}
-        setTimeout(() => {
-          try {
-            speechRecognitionRef.current.lang = sttLanguage;
-            speechRecognitionRef.current.start();
-            setIsSttActive(true);
-          } catch (e) {
-            console.warn("Could not start speech recognition:", e);
-          }
-        }, 100);
-      }
-      
     } catch (err) {
       console.error("Recording error:", err);
       let errMsg = 'Could not access microphone.';
