@@ -146,27 +146,25 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       recognition.lang = sttLanguage;
       
       recognition.onresult = (event) => {
-        let finalStr = '';
-        let interimStr = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
           const text = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalStr += text + ' ';
+            finalTranscript += text + ' ';
           } else {
-            interimStr += text;
+            interimTranscript += text;
           }
         }
-        if (finalStr) {
-          transcriptBufferRef.current = (transcriptBufferRef.current + ' ' + finalStr).trim();
-        }
-        const combined = (transcriptBufferRef.current + (interimStr ? ' ' + interimStr : '')).trim();
+        const combined = (finalTranscript + interimTranscript).trim();
         if (combined) {
+          transcriptBufferRef.current = finalTranscript.trim();
           setNotes(combined);
         }
       };
 
       recognition.onerror = (event) => {
-        console.warn('Speech recognition warning/error:', event.error);
+        console.warn('Speech recognition status:', event.error);
         if (event.error === 'not-allowed' || event.error === 'audio-capture' || event.error === 'service-not-allowed') {
           setIsSttActive(false);
         }
@@ -264,13 +262,16 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       }, 1000);
       
       if (speechRecognitionRef.current) {
-        try {
-          speechRecognitionRef.current.lang = sttLanguage;
-          speechRecognitionRef.current.start();
-          setIsSttActive(true);
-        } catch (e) {
-          console.warn("Could not start speech recognition:", e);
-        }
+        try { speechRecognitionRef.current.stop(); } catch(e) {}
+        setTimeout(() => {
+          try {
+            speechRecognitionRef.current.lang = sttLanguage;
+            speechRecognitionRef.current.start();
+            setIsSttActive(true);
+          } catch (e) {
+            console.warn("Could not start speech recognition:", e);
+          }
+        }, 100);
       }
       
     } catch (err) {
