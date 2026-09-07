@@ -295,6 +295,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     formData.append('file', blob, req.file.filename);
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');
+    formData.append('prompt', 'Transcribe the spoken audio accurately. Supports Tamil, Tanglish (Tamil and English code-switching), Hindi, and English speech.');
     if (req.body && req.body.language && req.body.language !== 'auto') {
       formData.append('language', req.body.language);
     }

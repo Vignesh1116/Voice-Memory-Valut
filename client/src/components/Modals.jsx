@@ -135,63 +135,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
     }
   }, [activeModal, editingMemory]);
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setIsSpeechSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = sttLanguage;
-      
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const text = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += text + ' ';
-          } else {
-            interimTranscript += text;
-          }
-        }
-        const combined = (finalTranscript + interimTranscript).trim();
-        if (combined) {
-          transcriptBufferRef.current = finalTranscript.trim();
-          setNotes(combined);
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition status:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'audio-capture' || event.error === 'service-not-allowed') {
-          setIsSttActive(false);
-        }
-      };
-
-      recognition.onend = () => {
-        if (isRecordingRef.current) {
-          try { recognition.start(); } catch(e) {}
-        } else {
-          setIsSttActive(false);
-        }
-      };
-
-      speechRecognitionRef.current = recognition;
-    } else {
-      setIsSpeechSupported(false);
-    }
-  }, [sttLanguage]);
-
   // Clean up on unmount
   useEffect(() => {
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
-      }
-      if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop(); } catch(e){}
       }
       clearInterval(timerRef.current);
     };
