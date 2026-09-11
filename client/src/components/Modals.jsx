@@ -8,7 +8,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const [isFavorite, setIsFavorite] = useState(false);
   const [tag, setTag] = useState('🎙️ Voice Memory');
   const [interimNotes, setInterimNotes] = useState('');
-  const [sttLanguage, setSttLanguage] = useState(navigator.language || 'en-US');
+  const [sttLanguage, setSttLanguage] = useState('ta-Tanglish');
   const [isSttActive, setIsSttActive] = useState(false);
   const transcriptBufferRef = useRef('');
   
@@ -57,8 +57,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       formData.append('audio', blobToTranscribe, `audio.${extension}`);
       const selectedLang = sttLanguage || transcribeLanguage || 'auto';
       if (selectedLang && selectedLang !== 'auto') {
-        const isoLang = selectedLang.split('-')[0].toLowerCase();
-        formData.append('language', isoLang);
+        formData.append('language', selectedLang);
       }
 
       let apiKey = localStorage.getItem('groq_api_key') || '';
@@ -391,10 +390,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                     onChange={e => setSttLanguage(e.target.value)}
                     disabled={isRecording}
                   >
-                    <option value="en-US">English (US)</option>
-                    <option value="en-IN">English (India)</option>
-                    <option value="hi-IN">Hindi (हिंदी)</option>
+                    <option value="ta-Tanglish">🔥 Tanglish (Tamil + English)</option>
                     <option value="ta-IN">Tamil (தமிழ்)</option>
+                    <option value="en-IN">English (India)</option>
+                    <option value="en-US">English (US)</option>
+                    <option value="hi-IN">Hindi (हिंदी)</option>
                     <option value="te-IN">Telugu (తెలుగు)</option>
                     <option value="ml-IN">Malayalam (മലയാളം)</option>
                     <option value="mr-IN">Marathi (मराठी)</option>

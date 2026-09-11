@@ -295,9 +295,11 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     formData.append('file', blob, req.file.filename);
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');
-    formData.append('prompt', 'Transcribe spoken Tamil, Tanglish (Tamil code-switched with English), Hindi, and English audio accurately into text. தமிழ் மற்றும் ஆங்கில பேச்சு வார்த்தைகளை துல்லியமாக எழுதவும்.');
     let rawLang = req.body && req.body.language ? req.body.language.trim() : '';
-    if (rawLang && rawLang !== 'auto') {
+    if (rawLang.includes('Tanglish') || rawLang.includes('tanglish')) {
+      formData.set('prompt', 'Transcribe spoken Tanglish (Tamil code-switched with English). Keep Tamil words and English words accurately as spoken in natural Tanglish. தமிழ் மற்றும் English கலந்து பேசும் டாங்க்லீஷ் வார்த்தைகளை துல்லியமாக எழுதவும்.');
+      formData.append('language', 'ta');
+    } else if (rawLang && rawLang !== 'auto') {
       const isoLang = rawLang.split('-')[0].toLowerCase();
       formData.append('language', isoLang);
     }
