@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Star, Calendar, Volume2, FileText, Copy, Edit, Trash2, Download } from 'lucide-react';
+import { Star, Calendar, Volume2, FileText, Copy, Edit, Trash2, Download, Check } from 'lucide-react';
 import AudioPlayer from './AudioPlayer';
 import { updateMemory, deleteMemory as localDeleteMemory } from '../services/localDb';
 
 export default function MemoryCard({ memory, index, onEdit, refreshData, activeAudioId, setActiveAudioId }) {
+  const [isCopied, setIsCopied] = useState(false);
   const isFavorite = memory.is_favorite;
   const formattedDate = new Date(memory.created_at).toLocaleString('en-IN', { 
     timeZone: 'Asia/Kolkata',
@@ -33,7 +34,8 @@ export default function MemoryCard({ memory, index, onEdit, refreshData, activeA
   const copyTranscript = () => {
     if (memory.notes) {
       navigator.clipboard.writeText(memory.notes);
-      alert('Copied to clipboard!');
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -117,8 +119,8 @@ export default function MemoryCard({ memory, index, onEdit, refreshData, activeA
           <span className="media-badge"><FileText size={14} /> Text Transcript</span>
           {memory.notes && memory.notes.trim() !== '' && (
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button className="btn-copy-mini" onClick={copyTranscript} title="Copy text">
-                <Copy size={12} /> Copy
+              <button className={`btn-copy-mini ${isCopied ? 'copied' : ''}`} onClick={copyTranscript} title="Copy text">
+                {isCopied ? <><Check size={12} style={{color: '#10b981'}} /> Copied!</> : <><Copy size={12} /> Copy</>}
               </button>
             </div>
           )}

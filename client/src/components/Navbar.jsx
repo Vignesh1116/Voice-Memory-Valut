@@ -17,8 +17,11 @@ export default function Navbar({ onOpenRecord, onOpenUpload }) {
           </svg>
         </div>
         <div className="brand-text">
-          <h1>Voice <span>Vault</span></h1>
-          <p>Preserve your thoughts and ideas</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1>Voice <span>Vault</span></h1>
+            <span className="live-status-badge"><span className="pulse-green-dot"></span> Active</span>
+          </div>
+          <p>AI-Powered Audio & Voice Memory Vault</p>
         </div>
       </div>
       <div className="header-actions">

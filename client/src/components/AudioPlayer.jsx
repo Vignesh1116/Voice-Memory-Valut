@@ -113,12 +113,26 @@ export default function AudioPlayer({ id, src, duration, isActive, setActive, cl
   const progressPercent = (currentTime / safeDuration) * 100;
 
   return (
-    <div className="memory-player">
+    <div className={`memory-player ${isPlaying ? 'is-playing' : ''}`}>
       <div className="player-controls">
         <button className="btn-play-pause" onClick={togglePlay} aria-label={isPlaying ? "Pause audio" : "Play audio"}>
           {isPlaying ? <Pause size={16} /> : <Play size={16} style={{marginLeft: '2px'}}/>}
         </button>
         <div className="progress-container">
+          {/* Animated sound wave bars preview */}
+          <div className="audio-visualizer-bars">
+            {[40, 75, 30, 90, 50, 85, 60, 95, 45, 70, 35, 80, 55, 90, 40, 65].map((h, idx) => (
+              <span 
+                key={idx} 
+                className={`viz-bar ${isPlaying ? 'animating' : ''}`}
+                style={{
+                  height: isPlaying ? `${Math.max(20, (h * (0.4 + (idx % 5) * 0.15)) % 100)}%` : '25%',
+                  animationDelay: `${(idx * 0.07).toFixed(2)}s`
+                }}
+              />
+            ))}
+          </div>
+
           <div className="progress-bar" onClick={handleSeek}>
             <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
           </div>

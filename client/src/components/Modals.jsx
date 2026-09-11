@@ -405,9 +405,23 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
                 <div className="recorder-display">
                   {isRecording && (
-                    <div className="recording-status">
-                      <span className="pulse-dot"></span> Recording Voice Live...
-                    </div>
+                    <>
+                      <div className="recording-status">
+                        <span className="pulse-dot"></span> Recording Voice Live...
+                      </div>
+                      <div className="audio-visualizer-bars my-4" style={{ height: '36px', maxWidth: '280px', margin: '14px auto' }}>
+                        {[60, 90, 45, 100, 70, 85, 95, 50, 80, 65, 90, 40, 75, 95, 55, 85].map((h, idx) => (
+                          <span 
+                            key={idx} 
+                            className="viz-bar animating"
+                            style={{
+                              height: `${Math.max(25, (h * (0.5 + (idx % 4) * 0.2)) % 100)}%`,
+                              animationDelay: `${(idx * 0.08).toFixed(2)}s`
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
                   )}
                   <div className="recording-timer">{formatTime(recordSeconds)}</div>
                   

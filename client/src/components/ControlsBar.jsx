@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { Search, X, Star } from 'lucide-react';
 
 export default function ControlsBar({ 
@@ -6,7 +7,19 @@ export default function ControlsBar({
   isFavoriteOnly, setIsFavoriteOnly, 
   currentSort, setCurrentSort 
 }) {
-  const tags = ['All', '🎙️ Voice Memory']; // Could be dynamic in future
+  const inputRef = useRef(null);
+  const tags = ['All', '🎙️ Voice Memory'];
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <>
@@ -14,11 +27,15 @@ export default function ControlsBar({
         <div className="search-box">
           <Search className="search-icon" size={18} />
           <input 
+            ref={inputRef}
             type="text" 
-            placeholder="Search memories by title, lyrics, or notes..." 
+            placeholder="Search memories by title, text, or notes..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {!searchQuery && (
+            <span className="search-kbd-hint">⌘K</span>
+          )}
           {searchQuery && (
             <button className="btn-clear" onClick={() => setSearchQuery('')}>
               <X size={18} />
