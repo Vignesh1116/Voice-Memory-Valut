@@ -35,7 +35,8 @@ function initDb() {
       tags TEXT DEFAULT '[]',
       is_favorite INTEGER DEFAULT 0,
       notes TEXT DEFAULT '',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      vault_id TEXT DEFAULT 'default'
     )
   `;
 
@@ -44,6 +45,10 @@ function initDb() {
       console.error('Error creating memories table:', err.message);
     } else {
       console.log('Memories table ready.');
+      // Auto-migrate: Add vault_id column if database was created prior to isolation feature
+      db.run(`ALTER TABLE memories ADD COLUMN vault_id TEXT DEFAULT 'default'`, (alterErr) => {
+        if (!alterErr) console.log('Migrated DB: Added vault_id column to memories table');
+      });
       db.run(`UPDATE memories SET tags = '["🎙️ Voice Memory"]' WHERE tags != '["🎙️ Voice Memory"]'`, (updateErr) => {
         if (!updateErr) console.log('All memory cards normalized to category: 🎙️ Voice Memory');
       });

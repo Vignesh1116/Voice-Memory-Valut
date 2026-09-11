@@ -390,7 +390,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
                     onChange={e => setSttLanguage(e.target.value)}
                     disabled={isRecording}
                   >
-                    <option value="ta-Tanglish">🔥 Tanglish (Tamil + English)</option>
+                    <option value="ta-Tanglish"> Tanglish (Tamil + English)</option>
                     <option value="ta-IN">Tamil (தமிழ்)</option>
                     <option value="en-IN">English (India)</option>
                     <option value="en-US">English (US)</option>

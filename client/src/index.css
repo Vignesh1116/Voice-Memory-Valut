@@ -1273,8 +1273,14 @@ body::before {
 
 /* Mobile Application Interface Optimization (< 640px) */
 @media (max-width: 640px) {
+  body::before {
+    background-attachment: scroll;
+  }
+
   .app-container {
     padding: 12px 10px 80px;
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .btn-fab-record {

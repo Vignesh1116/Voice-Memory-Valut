@@ -65,12 +65,18 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
+// Helper to safely extract vault_id from device session headers or params
+function getVaultId(req) {
+  return req.headers['x-vault-id'] || req.headers['x-device-id'] || req.query.vault_id || (req.body && req.body.vault_id) || 'default';
+}
+
 // GET /api/stats - Get vault summary statistics
 router.get('/stats', async (req, res) => {
   try {
-    const totalRow = await db.get('SELECT COUNT(*) as count, SUM(duration) as totalDuration FROM memories');
-    const favRow = await db.get('SELECT COUNT(*) as favCount FROM memories WHERE is_favorite = 1');
-    const allMemories = await db.all('SELECT tags FROM memories');
+    const vaultId = getVaultId(req);
+    const totalRow = await db.get('SELECT COUNT(*) as count, SUM(duration) as totalDuration FROM memories WHERE vault_id = ?', [vaultId]);
+    const favRow = await db.get('SELECT COUNT(*) as favCount FROM memories WHERE is_favorite = 1 AND vault_id = ?', [vaultId]);
+    const allMemories = await db.all('SELECT tags FROM memories WHERE vault_id = ?', [vaultId]);
 
     const tagDistribution = {};
     allMemories.forEach(m => {
@@ -95,9 +101,10 @@ router.get('/stats', async (req, res) => {
 // GET /api/memories - List all memories with search, filter, and sort
 router.get('/memories', async (req, res) => {
   try {
+    const vaultId = getVaultId(req);
     const { search, tag, favorite, sort } = req.query;
-    let query = 'SELECT * FROM memories WHERE 1=1';
-    const params = [];
+    let query = 'SELECT * FROM memories WHERE vault_id = ?';
+    const params = [vaultId];
 
     if (search && search.trim() !== '') {
       query += ' AND (title LIKE ? OR description LIKE ? OR notes LIKE ?)';
@@ -145,7 +152,8 @@ router.get('/memories', async (req, res) => {
 // GET /api/memories/:id - Get single memory
 router.get('/memories/:id', async (req, res) => {
   try {
-    const row = await db.get('SELECT * FROM memories WHERE id = ?', [req.params.id]);
+    const vaultId = getVaultId(req);
+    const row = await db.get('SELECT * FROM memories WHERE id = ? AND vault_id = ?', [req.params.id, vaultId]);
     if (!row) return res.status(404).json({ error: 'Memory not found' });
 
     res.json({
@@ -166,6 +174,7 @@ router.post('/memories/upload', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' });
     }
 
+    const vaultId = getVaultId(req);
     const id = uuidv4();
     const title = req.body.title || `Voice Memory - ${new Date().toLocaleDateString()}`;
     const description = req.body.description || '';
@@ -180,11 +189,11 @@ router.post('/memories/upload', upload.single('audio'), async (req, res) => {
     const formattedTags = formatTags(tags);
 
     const insertQuery = `
-      INSERT INTO memories (id, title, description, filename, filepath, duration, tags, is_favorite, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memories (id, title, description, filename, filepath, duration, tags, is_favorite, notes, created_at, vault_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    await db.run(insertQuery, [id, title, description, filename, filepath, duration, formattedTags, is_favorite, notes, created_at]);
+    await db.run(insertQuery, [id, title, description, filename, filepath, duration, formattedTags, is_favorite, notes, created_at, vaultId]);
 
     const createdMemory = {
       id,
@@ -209,7 +218,8 @@ router.post('/memories/upload', upload.single('audio'), async (req, res) => {
 // PUT /api/memories/:id - Update memory metadata
 router.put('/memories/:id', async (req, res) => {
   try {
-    const existing = await db.get('SELECT * FROM memories WHERE id = ?', [req.params.id]);
+    const vaultId = getVaultId(req);
+    const existing = await db.get('SELECT * FROM memories WHERE id = ? AND vault_id = ?', [req.params.id, vaultId]);
     if (!existing) return res.status(404).json({ error: 'Memory not found' });
 
     const title = req.body.title !== undefined ? req.body.title : existing.title;
@@ -225,12 +235,12 @@ router.put('/memories/:id', async (req, res) => {
     const updateQuery = `
       UPDATE memories
       SET title = ?, description = ?, tags = ?, is_favorite = ?, notes = ?
-      WHERE id = ?
+      WHERE id = ? AND vault_id = ?
     `;
 
-    await db.run(updateQuery, [title, description, formattedTags, is_favorite, notes, req.params.id]);
+    await db.run(updateQuery, [title, description, formattedTags, is_favorite, notes, req.params.id, vaultId]);
 
-    const updated = await db.get('SELECT * FROM memories WHERE id = ?', [req.params.id]);
+    const updated = await db.get('SELECT * FROM memories WHERE id = ? AND vault_id = ?', [req.params.id, vaultId]);
     res.json({
       ...updated,
       tags: parseTagsSafe(updated.tags),
@@ -245,7 +255,8 @@ router.put('/memories/:id', async (req, res) => {
 // DELETE /api/memories/:id - Delete memory and file
 router.delete('/memories/:id', async (req, res) => {
   try {
-    const existing = await db.get('SELECT * FROM memories WHERE id = ?', [req.params.id]);
+    const vaultId = getVaultId(req);
+    const existing = await db.get('SELECT * FROM memories WHERE id = ? AND vault_id = ?', [req.params.id, vaultId]);
     if (!existing) return res.status(404).json({ error: 'Memory not found' });
 
     // Remove file from disk if exists
@@ -258,7 +269,7 @@ router.delete('/memories/:id', async (req, res) => {
       }
     }
 
-    await db.run('DELETE FROM memories WHERE id = ?', [req.params.id]);
+    await db.run('DELETE FROM memories WHERE id = ? AND vault_id = ?', [req.params.id, vaultId]);
     res.json({ message: 'Memory deleted successfully', id: req.params.id });
   } catch (err) {
     console.error('Error deleting memory:', err);

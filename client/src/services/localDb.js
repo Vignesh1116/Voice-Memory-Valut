@@ -13,6 +13,16 @@ const audioStore = localforage.createInstance({
   storeName: 'audio_blobs'
 });
 
+// Helper to generate or retrieve device vault ID
+export const getVaultId = () => {
+  let vaultId = localStorage.getItem('voice_vault_device_id');
+  if (!vaultId) {
+    vaultId = uuidv4();
+    localStorage.setItem('voice_vault_device_id', vaultId);
+  }
+  return vaultId;
+};
+
 // Helper to convert Blob to base64
 const blobToBase64 = (blob) => {
   return new Promise((resolve, reject) => {
@@ -26,6 +36,7 @@ const blobToBase64 = (blob) => {
 };
 
 export const saveMemory = async (memoryData, audioBlob) => {
+  const vaultId = getVaultId();
   // 1. Try saving to Express Server API first
   try {
     const formData = new FormData();
@@ -44,9 +55,13 @@ export const saveMemory = async (memoryData, audioBlob) => {
     formData.append('tags', JSON.stringify(memoryData.tags || ['🎙️ Voice Memory']));
     formData.append('is_favorite', memoryData.is_favorite ? 'true' : 'false');
     formData.append('notes', memoryData.notes || '');
+    formData.append('vault_id', vaultId);
 
     const response = await fetch('/api/memories/upload', {
       method: 'POST',
+      headers: {
+        'x-vault-id': vaultId
+      },
       body: formData
     });
 
@@ -97,6 +112,7 @@ export const saveMemory = async (memoryData, audioBlob) => {
     id,
     filename,
     filepath: filename,
+    vault_id: vaultId,
     created_at: new Date().toISOString()
   };
 
@@ -107,8 +123,13 @@ export const saveMemory = async (memoryData, audioBlob) => {
 };
 
 export const getMemories = async () => {
+  const vaultId = getVaultId();
   try {
-    const res = await fetch('/api/memories');
+    const res = await fetch('/api/memories', {
+      headers: {
+        'x-vault-id': vaultId
+      }
+    });
     if (res.ok) {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
@@ -178,10 +199,14 @@ export const getMemoryAudioUrl = async (filepathOrFilename) => {
 };
 
 export const updateMemory = async (id, updates) => {
+  const vaultId = getVaultId();
   try {
     const res = await fetch(`/api/memories/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-vault-id': vaultId
+      },
       body: JSON.stringify(updates)
     });
     if (res.ok) {
@@ -205,9 +230,13 @@ export const updateMemory = async (id, updates) => {
 };
 
 export const deleteMemory = async (id) => {
+  const vaultId = getVaultId();
   try {
     const res = await fetch(`/api/memories/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        'x-vault-id': vaultId
+      }
     });
     if (res.ok) {
       return;
@@ -240,8 +269,13 @@ export const deleteMemory = async (id) => {
 };
 
 export const getStats = async () => {
+  const vaultId = getVaultId();
   try {
-    const res = await fetch('/api/stats');
+    const res = await fetch('/api/stats', {
+      headers: {
+        'x-vault-id': vaultId
+      }
+    });
     if (res.ok) {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
