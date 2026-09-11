@@ -24,6 +24,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recordedBlobRef = useRef(null);
   const timerRef = useRef(null);
   const speechRecognitionRef = useRef(null);
   const isRecordingRef = useRef(false);
@@ -39,7 +40,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   // LocalStorage API Key check happens inside the function
 
   const handleTranscribeAudio = async (blobInput = null) => {
-    const blobToTranscribe = blobInput || recordedBlob;
+    const blobToTranscribe = blobInput || recordedBlobRef.current || recordedBlob;
     if (!blobToTranscribe) return;
 
     try {
@@ -135,6 +136,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       if (activeModal === 'record') {
         setNotes('');
         transcriptBufferRef.current = '';
+        recordedBlobRef.current = null;
+        setRecordedBlob(null);
       }
     }
   }, [activeModal, editingMemory]);
@@ -187,6 +190,8 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      recordedBlobRef.current = null;
+      setRecordedBlob(null);
       setTranscribeStatus(null);
       setTranscribeErrorMsg('');
 
@@ -199,6 +204,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       mediaRecorder.onstop = () => {
         const actualMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
         const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
+        recordedBlobRef.current = blob;
         setRecordedBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(track => track.stop());
@@ -250,19 +256,16 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   };
 
   const handleSaveRecord = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
-    let blobToSave = recordedBlob;
-    let durationSeconds = recordSeconds;
-
-    // If user clicks Save while active recording, auto-stop first!
+    // If user clicks Save while active recording, auto-stop first and wait for onstop
     if (isRecordingRef.current && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       await new Promise((resolve) => {
         if (mediaRecorderRef.current) {
           const prevOnStop = mediaRecorderRef.current.onstop;
           mediaRecorderRef.current.onstop = (evt) => {
             if (prevOnStop) prevOnStop(evt);
-            setTimeout(resolve, 150);
+            resolve();
           };
           handleStopRecording();
         } else {
@@ -270,22 +273,23 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
         }
       });
       await new Promise(r => setTimeout(r, 100));
-      blobToSave = recordedBlob;
     }
 
-    if (!blobToSave && audioChunksRef.current.length > 0) {
-      const mime = getSupportedMimeType() || 'audio/webm';
+    let blobToSave = recordedBlobRef.current || recordedBlob;
+
+    if ((!blobToSave || blobToSave.size === 0) && audioChunksRef.current.length > 0) {
+      const mime = (mediaRecorderRef.current && mediaRecorderRef.current.mimeType) || getSupportedMimeType() || 'audio/webm';
       blobToSave = new Blob(audioChunksRef.current, { type: mime });
     }
 
-    if (!blobToSave) {
+    if (!blobToSave || blobToSave.size === 0) {
       alert('No recorded audio found. Please record audio before saving.');
       return;
     }
     
     const memoryData = {
-      title,
-      duration: String(durationSeconds || recordSeconds),
+      title: title || `Voice Memory - ${new Date().toLocaleDateString()}`,
+      duration: String(recordSeconds || 0),
       tags: [tag],
       is_favorite: isFavorite,
       notes
@@ -296,7 +300,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       refreshData();
       closeModal();
     } catch (err) {
-      console.error(err);
+      console.error('Save memory error:', err);
       if (err.message && err.message.includes('dynamically imported module')) {
           alert('Updating app to the latest version... Please try saving again in a moment!');
           window.location.reload();
@@ -498,7 +502,10 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
             <button 
               type="submit" 
               className="btn btn-primary btn-save-mobile" 
-              disabled={(activeModal === 'record' && !recordedBlob && !isRecording) || (activeModal === 'upload' && !selectedFile)}
+              disabled={
+                (activeModal === 'record' && !recordedBlob && !recordedBlobRef.current && !isRecording && audioChunksRef.current.length === 0) || 
+                (activeModal === 'upload' && !selectedFile)
+              }
             >
               <Save size={18} /> Save Memory
             </button>
