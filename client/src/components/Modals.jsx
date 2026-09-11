@@ -150,6 +150,7 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   }, []);
 
   const getSupportedMimeType = () => {
+    if (typeof window === 'undefined' || !window.MediaRecorder) return '';
     const types = [
       'audio/webm;codecs=opus',
       'audio/webm',
@@ -159,9 +160,11 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
       'audio/ogg'
     ];
     for (const type of types) {
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
+      try {
+        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      } catch (e) {}
     }
     return '';
   };
@@ -169,13 +172,17 @@ export default function Modals({ activeModal, closeModal, refreshData, editingMe
   const handleStartRecording = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('Audio recording is not supported on this browser/device or requires an HTTPS connection.');
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          alert('Microphone access requires HTTPS on mobile devices. Please deploy/access this app via HTTPS.');
+        } else {
+          alert('Audio recording is not supported on this browser/device.');
+        }
         return;
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getSupportedMimeType();
-      const options = mimeType ? { mimeType } : {};
+      const options = mimeType ? { mimeType } : undefined;
       const mediaRecorder = new MediaRecorder(stream, options);
 
       mediaRecorderRef.current = mediaRecorder;

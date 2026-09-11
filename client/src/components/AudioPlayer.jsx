@@ -13,30 +13,55 @@ export default function AudioPlayer({ id, src, duration, isActive, setActive, cl
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [audioUrl, setAudioUrl] = useState(null);
   const audioRef = useRef(null);
+
+  // Pre-resolve audio URL when src changes
+  useEffect(() => {
+    let isMounted = true;
+    const loadUrl = async () => {
+      if (src) {
+        const url = await getMemoryAudioUrl(src);
+        if (isMounted) {
+          setAudioUrl(url);
+        }
+      }
+    };
+    loadUrl();
+    return () => { isMounted = false; };
+  }, [src]);
 
   useEffect(() => {
     // If this player becomes inactive (because another started), pause it
     if (!isActive && isPlaying) {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
       setIsPlaying(false);
     }
   }, [isActive]);
 
-  const togglePlay = async () => {
+  const togglePlay = () => {
+    if (!audioUrl) return;
+
     if (!audioRef.current) {
-      const audioUrl = await getMemoryAudioUrl(src);
-      if (!audioUrl) return;
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.playbackRate = playbackSpeed;
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.playbackRate = playbackSpeed;
       
-      audioRef.current.addEventListener('timeupdate', () => {
-        setCurrentTime(audioRef.current.currentTime);
+      audio.addEventListener('timeupdate', () => {
+        setCurrentTime(audio.currentTime);
       });
       
-      audioRef.current.addEventListener('ended', () => {
+      audio.addEventListener('ended', () => {
         setIsPlaying(false);
         setCurrentTime(0);
+        clearActive();
+      });
+
+      audio.addEventListener('error', (e) => {
+        console.error("Audio playback error:", e);
+        setIsPlaying(false);
         clearActive();
       });
     }
@@ -47,8 +72,19 @@ export default function AudioPlayer({ id, src, duration, isActive, setActive, cl
       clearActive();
     } else {
       setActive();
-      audioRef.current.play().catch(e => console.error("Playback failed", e));
-      setIsPlaying(true);
+      // Synchronous call inside user click handler ensures Mobile Safari & Chrome play immediately
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(err => {
+          console.error("Playback failed:", err);
+          setIsPlaying(false);
+          clearActive();
+        });
+      } else {
+        setIsPlaying(true);
+      }
     }
   };
 
@@ -79,7 +115,7 @@ export default function AudioPlayer({ id, src, duration, isActive, setActive, cl
   return (
     <div className="memory-player">
       <div className="player-controls">
-        <button className="btn-play-pause" onClick={togglePlay}>
+        <button className="btn-play-pause" onClick={togglePlay} aria-label={isPlaying ? "Pause audio" : "Play audio"}>
           {isPlaying ? <Pause size={16} /> : <Play size={16} style={{marginLeft: '2px'}}/>}
         </button>
         <div className="progress-container">

@@ -1487,4 +1487,13 @@ body::before {
     padding: 10px 20px;
     font-size: 14px;
   }
+
+  /* Prevent iOS Safari viewport auto-zoom on form control focus */
+  .form-group input[type="text"],
+  .form-group textarea,
+  .glass-select,
+  select,
+  input {
+    font-size: 16px !important;
+  }
 }

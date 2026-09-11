@@ -32,7 +32,7 @@ export const saveMemory = async (memoryData, audioBlob) => {
     if (audioBlob) {
       const mime = audioBlob.type || 'audio/webm';
       let ext = 'webm';
-      if (mime.includes('mp4')) ext = 'mp4';
+      if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) ext = 'mp4';
       else if (mime.includes('wav')) ext = 'wav';
       else if (mime.includes('ogg')) ext = 'ogg';
       else if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';
@@ -51,8 +51,11 @@ export const saveMemory = async (memoryData, audioBlob) => {
     });
 
     if (response.ok) {
-      const savedMemory = await response.json();
-      return savedMemory;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const savedMemory = await response.json();
+        return savedMemory;
+      }
     } else {
       console.warn('API save returned non-200 status:', response.status);
     }
@@ -64,7 +67,7 @@ export const saveMemory = async (memoryData, audioBlob) => {
   const id = uuidv4();
   const mime = audioBlob ? (audioBlob.type || 'audio/webm') : 'audio/webm';
   let ext = 'webm';
-  if (mime.includes('mp4')) ext = 'mp4';
+  if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) ext = 'mp4';
   else if (mime.includes('wav')) ext = 'wav';
   else if (mime.includes('ogg')) ext = 'ogg';
   else if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';
@@ -107,8 +110,11 @@ export const getMemories = async () => {
   try {
     const res = await fetch('/api/memories');
     if (res.ok) {
-      const serverMemories = await res.json();
-      return serverMemories;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const serverMemories = await res.json();
+        return serverMemories;
+      }
     }
   } catch (apiErr) {
     console.warn('API fetch failed, falling back to localforage:', apiErr);
@@ -121,11 +127,25 @@ export const getMemories = async () => {
 export const getMemoryAudioUrl = async (filepathOrFilename) => {
   if (!filepathOrFilename) return null;
 
-  // If path starts with / or http, it's a server URL
+  // Extract basename filename if it's a path like /uploads/abc.webm
+  const filename = filepathOrFilename.split('/').pop();
+
+  // 1. Try local audioStore first if available (for instant offline & mobile play)
+  if (filename) {
+    try {
+      const blob = await audioStore.getItem(filename);
+      if (blob) {
+        return URL.createObjectURL(blob);
+      }
+    } catch (e) {}
+  }
+
+  // 2. If path starts with / or http, return server URL
   if (filepathOrFilename.startsWith('/') || filepathOrFilename.startsWith('http')) {
     return filepathOrFilename;
   }
 
+  // 3. Check Capacitor Native filesystem if on mobile native
   try {
     if (Capacitor.isNativePlatform()) {
       try {
@@ -137,11 +157,6 @@ export const getMemoryAudioUrl = async (filepathOrFilename) => {
       } catch (e) {
         console.warn('Filesystem.getUri failed, checking audioStore:', e);
       }
-    }
-
-    const blob = await audioStore.getItem(filepathOrFilename);
-    if (blob) {
-      return URL.createObjectURL(blob);
     }
 
     try {
@@ -170,7 +185,10 @@ export const updateMemory = async (id, updates) => {
       body: JSON.stringify(updates)
     });
     if (res.ok) {
-      return await res.json();
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await res.json();
+      }
     }
   } catch (apiErr) {
     console.warn('API update failed, using localforage:', apiErr);
@@ -225,7 +243,10 @@ export const getStats = async () => {
   try {
     const res = await fetch('/api/stats');
     if (res.ok) {
-      return await res.json();
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await res.json();
+      }
     }
   } catch (apiErr) {
     console.warn('API stats failed, using local calculation:', apiErr);
